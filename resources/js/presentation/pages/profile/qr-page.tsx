@@ -18,13 +18,22 @@ export function QrPage() {
 
     const showCard = Boolean(qrUrl) && !isLoading && !isError;
     const showError = isError && !isLoading;
+    const course = student.departmentCode ?? student.departmentName ?? null;
 
     return (
         <motion.div
             initial={{ opacity: 0, y: 28, scale: 0.92 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={REVEAL_TRANSITION}
-            className="flex h-dvh w-dvw flex-col items-center justify-center overflow-hidden px-6"
+            // Was `h-dvh w-dvw overflow-hidden`, which sized this against
+            // the *whole* viewport regardless of where the page sits inside
+            // AppLayout's centered, padded <main>. On desktop that made the
+            // card blow past the layout's max-w-5xl container and forced a
+            // horizontal scrollbar, so the card rendered off-center instead
+            // of centered in the content column. `w-full` + a min-height
+            // (instead of a hard 100dvh) keeps it fluid inside whatever
+            // container it's placed in, on any screen size.
+            className="flex min-h-[70svh] w-full flex-col items-center justify-center px-2 py-6"
         >
             {showCard && qrUrl && (
                 <PremiumIdCard
@@ -33,6 +42,8 @@ export function QrPage() {
                     studentNumber={student.studentNumber}
                     section={student.section}
                     qrUrl={qrUrl}
+                    photoUrl={student.photoUrl}
+                    course={course}
                 />
             )}
 
