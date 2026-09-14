@@ -18,7 +18,7 @@ class StudentSeeder extends Seeder
         $bsit = Department::where('code', 'BSIT')->firstOrFail();
 
         $this->makeStudent([
-            'student_number' => 'TEST-SYSADMIN',
+            'student_number' => '9090-9-90909',
             'last_name' => 'Reyes',
             'first_name' => 'Sofia',
             'department_id' => $bsit->id,

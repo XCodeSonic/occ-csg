@@ -255,6 +255,11 @@ function Scanner({
             if (!video) return;
 
             try {
+                if (!navigator.mediaDevices?.getUserMedia) {
+                    throw new Error(
+                        'Camera access requires a secure connection (HTTPS). Ask an admin to enable HTTPS for this site.',
+                    );
+                }
                 // deviceId left undefined: zxing auto-prefers the
                 // environment-facing (back) camera when one is available.
                 const scannerControls = await codeReader.decodeFromVideoDevice(undefined, video, (result) => {
