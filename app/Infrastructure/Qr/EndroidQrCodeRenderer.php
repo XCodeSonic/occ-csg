@@ -9,10 +9,12 @@ use Endroid\QrCode\Writer\PngWriter;
 
 final class EndroidQrCodeRenderer implements QrCodeRendererInterface
 {
-    // High error correction (spec §5.1: must survive being printed small
-    // on a physical ID badge and scanned by a generic camera under
-    // imperfect conditions), at a size generous enough to stay readable
-    // printed without ballooning the PNG for on-screen display.
+    // Medium error correction: the token payload shrank drastically once
+    // QrPayload switched to raw AES-256-GCM (no JSON envelope, no separate
+    // HMAC — see QrPayload::encrypt()), so High EC's ~2x module-count cost
+    // is no longer worth paying. Medium still tolerates real-world badge
+    // wear while keeping modules large enough for fast, off-angle phone
+    // camera scans.
     private const SIZE = 400;
 
     private const MARGIN = 4;
@@ -25,7 +27,7 @@ final class EndroidQrCodeRenderer implements QrCodeRendererInterface
         $builder = new Builder(
             writer: new PngWriter(),
             data: $data,
-            errorCorrectionLevel: ErrorCorrectionLevel::High,
+            errorCorrectionLevel: ErrorCorrectionLevel::Medium,
             size: self::SIZE,
             margin: self::MARGIN,
         );
