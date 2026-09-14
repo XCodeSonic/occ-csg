@@ -34,6 +34,19 @@ final class BuildEventRosterReport
      *                                  filter.
      * @param  string|null  $yearLevel  Optional narrowing filter.
      * @param  string|null  $section  Optional narrowing filter.
+     * @param  callable|null  $onGroupBuilt  Invoked once per
+     *                                       department/year-level/section
+     *                                       group as it finishes building
+     *                                       — ProcessRosterReportGeneration
+     *                                       uses this to advance a real
+     *                                       progress counter while a
+     *                                       full-school report (the case
+     *                                       that used to just hang) is
+     *                                       being assembled, group by
+     *                                       group, rather than a fake
+     *                                       timer. Null everywhere else,
+     *                                       including every existing
+     *                                       caller/test — a no-op.
      * @return array{event: array, sessions: array, groups: array}
      */
     public function __invoke(
@@ -41,6 +54,7 @@ final class BuildEventRosterReport
         ?int $departmentId = null,
         ?string $yearLevel = null,
         ?string $section = null,
+        ?callable $onGroupBuilt = null,
     ): array {
         $sessions = AttendanceSession::whereHas('eventDay', fn ($q) => $q->where('event_id', $event->id))
             ->with('eventDay')
@@ -53,7 +67,13 @@ final class BuildEventRosterReport
             ))
             ->values();
 
+        // Never lists a student whose department isn't part of this
+        // event's scope (see EventModel::includedDepartmentIds) — same
+        // reasoning as BuildSessionReport.
+        $includedDepartmentIds = $event->includedDepartmentIds();
+
         $roster = Student::where('role', Role::Student)
+            ->whereIn('department_id', $includedDepartmentIds)
             ->when($departmentId, fn ($q) => $q->where('department_id', $departmentId))
             ->when(filled($yearLevel), fn ($q) => $q->where('year_level', $yearLevel))
             ->when(filled($section), fn ($q) => $q->where('section', $section))
@@ -97,9 +117,17 @@ final class BuildEventRosterReport
                 $s->year_level ?? '—',
                 $s->section ?? '—',
             ))
-            ->map(fn (Collection $students, string $key) => $this->buildGroup(
-                $key, $students, $sessions, $recordsBySession, $excludedBySession, $penaltyTotals,
-            ))
+            ->map(function (Collection $students, string $key) use ($sessions, $recordsBySession, $excludedBySession, $penaltyTotals, $onGroupBuilt) {
+                $group = $this->buildGroup(
+                    $key, $students, $sessions, $recordsBySession, $excludedBySession, $penaltyTotals,
+                );
+
+                if ($onGroupBuilt !== null) {
+                    $onGroupBuilt();
+                }
+
+                return $group;
+            })
             ->sortBy(fn (array $group) => sprintf(
                 '%s-%03d-%s', $group['department_code'], (int) $group['year_level'], $group['section'],
             ))

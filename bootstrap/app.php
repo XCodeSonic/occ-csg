@@ -13,9 +13,14 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->trustProxies(at: '*');
+
         $middleware->alias([
             'password.changed' => \App\Http\Middleware\EnsurePasswordHasBeenChanged::class,
         ]);
+
+        // Global security headers for the SPA shell and API responses.
+        $middleware->append(\App\Http\Middleware\AddSecurityHeaders::class);
 
         $middleware->redirectGuestsTo(function (Request $request) {
             if ($request->is('api/*')) {

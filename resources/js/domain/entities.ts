@@ -4,6 +4,8 @@ export interface Department {
     id: number;
     name: string;
     code: string;
+    logoPath: string | null;
+    logoUrl: string | null;
 }
 
 export interface AcademicYear {
@@ -54,6 +56,7 @@ export interface Student {
     photoPath: string | null;
     photoUrl: string | null;
     mustChangePassword: boolean;
+    hasAcceptedTerms: boolean;
 }
 
 export interface EventEntity {
@@ -78,6 +81,19 @@ export interface EventEntity {
      */
     semesterTerm?: string | null;
     academicYearName?: string | null;
+    /**
+     * The departments this event is scoped to — a student outside this
+     * list is never tracked for attendance here (see backend
+     * EventModel::includesDepartment). Every department currently in the
+     * system by default; narrowed at creation to e.g. "BSIT only".
+     */
+    departments: EventDepartment[];
+}
+
+export interface EventDepartment {
+    id: number;
+    name: string;
+    code: string;
 }
 
 export interface EventDay {

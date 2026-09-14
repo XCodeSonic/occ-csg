@@ -1,6 +1,17 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 
+/*
+  Stops the browser's own native pull-to-refresh (Chrome/Android's
+  swipe-down-to-reload gesture) from firing at the same time as the
+  in-app pull-to-refresh (see PullToRefresh component), which otherwise
+  shows two conflicting refresh indicators at once on mobile.
+*/
+html,
+body {
+    overscroll-behavior-y: contain;
+}
+
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 @source '../**/*.blade.php';
@@ -151,5 +162,60 @@
             'cv03',
             'cv04',
             'cv11';
+    }
+}
+
+/*
+  Premium "shining" logo sweep — used for the trust badges on the login
+  footer ("Developed by") and the account screen ("Powered by"), styled
+  after the holographic shine on e-gov digital ID cards. A soft diagonal
+  highlight sweeps across each logo on a slow, staggered loop; the base
+  logo is always fully visible, this is a highlight layered on top.
+*/
+@keyframes shimmer-sweep {
+    0% {
+        transform: translateX(-120%) skewX(-20deg);
+    }
+    90%,
+    100% {
+        transform: translateX(220%) skewX(-20deg);
+    }
+}
+
+.shimmer-logo {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+}
+
+.shimmer-logo::after {
+    content: '';
+    position: absolute;
+    inset: -20% -60%;
+    background: linear-gradient(
+        75deg,
+        transparent 35%,
+        rgba(255, 255, 255, 0.6) 50%,
+        transparent 65%
+    );
+    animation: shimmer-sweep 6s linear infinite backwards;
+    animation-delay: var(--shimmer-delay, 0s);
+    pointer-events: none;
+    z-index: 1;
+}
+
+.dark .shimmer-logo::after {
+    background: linear-gradient(
+        75deg,
+        transparent 35%,
+        rgba(255, 255, 255, 0.28) 50%,
+        transparent 65%
+    );
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .shimmer-logo::after {
+        animation: none;
+        display: none;
     }
 }

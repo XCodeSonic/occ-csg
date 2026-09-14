@@ -1,8 +1,10 @@
 import { type FormEvent, useState } from 'react';
+import { isAxiosError } from 'axios';
 import { toast } from 'sonner';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -47,7 +49,29 @@ const CHECK_TYPE_OPTIONS = Object.values(CheckType).map((value) => ({
     label: CHECK_TYPE_LABEL[value],
 }));
 
-export function EventDaySection({ day, canManage }: { day: EventDayWithSessions; canManage: boolean }) {
+// Backend errors (EventHasOngoingSessionException, and validation
+// messages on session creation) already come back as a plain
+// { message } JSON body — surface that instead of a generic string so
+// the officer sees *why*, not just that something failed.
+function extractErrorMessage(error: unknown, fallback: string): string {
+    return isAxiosError(error) && typeof error.response?.data?.message === 'string'
+        ? error.response.data.message
+        : fallback;
+}
+
+export function EventDaySection({
+    day,
+    canManage,
+    ongoingSessionId,
+}: {
+    day: EventDayWithSessions;
+    canManage: boolean;
+    // Id of the one session (in *any* day of this event) currently
+    // ongoing, or null if none is. Only one session per event may be
+    // ongoing at a time, so every Start button except the one for this
+    // exact session gets disabled client-side — see EventHasOngoingSessionException.
+    ongoingSessionId: number | null;
+}) {
     const [isCreating, setIsCreating] = useState(false);
     const [form, setForm] = useState<SessionFormValues>(EMPTY_SESSION_FORM);
     const createSession = useCreateSession(day.id);
@@ -57,7 +81,7 @@ export function EventDaySection({ day, canManage }: { day: EventDayWithSessions;
     function handleStart(sessionId: number) {
         startSession.mutate(sessionId, {
             onSuccess: () => toast.success('Session started.'),
-            onError: () => toast.error('Could not start session.'),
+            onError: (error) => toast.error(extractErrorMessage(error, 'Could not start session.')),
         });
     }
 
@@ -87,8 +111,13 @@ export function EventDaySection({ day, canManage }: { day: EventDayWithSessions;
                     setForm(EMPTY_SESSION_FORM);
                     setIsCreating(false);
                 },
-                onError: () => {
-                    toast.error("Could not add session. Check this day doesn't already have that window + check.");
+                onError: (error) => {
+                    toast.error(
+                        extractErrorMessage(
+                            error,
+                            "Could not add session. Check this day doesn't already have that window + check.",
+                        ),
+                    );
                 },
             },
         );
@@ -139,7 +168,12 @@ export function EventDaySection({ day, canManage }: { day: EventDayWithSessions;
                             <Button
                                 size="sm"
                                 onClick={() => handleStart(session.id)}
-                                disabled={startSession.isPending}
+                                disabled={startSession.isPending || (ongoingSessionId !== null && ongoingSessionId !== session.id)}
+                                title={
+                                    ongoingSessionId !== null && ongoingSessionId !== session.id
+                                        ? 'Another session in this event is already ongoing. End it first.'
+                                        : undefined
+                                }
                             >
                                 {startSession.isPending ? 'Starting…' : 'Start'}
                             </Button>
@@ -159,9 +193,27 @@ export function EventDaySection({ day, canManage }: { day: EventDayWithSessions;
                 ))}
             </div>
 
-            {canManage &&
-                (isCreating ? (
-                    <form onSubmit={handleSubmit} className="space-y-3 rounded-lg border border-border p-3">
+            {canManage && availableWindowOptions.length > 0 && (
+                <Button size="sm" variant="outline" onClick={() => setIsCreating(true)} className="w-full">
+                    Add session
+                </Button>
+            )}
+
+            <Dialog
+                open={isCreating}
+                onOpenChange={(open) => {
+                    setIsCreating(open);
+                    if (!open) setForm(EMPTY_SESSION_FORM);
+                }}
+            >
+                <DialogContent className="sm:max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle>Add session</DialogTitle>
+                        <DialogDescription>
+                            Day {day.dayNumber} — {formatDate(day.date)}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleSubmit} className="space-y-3">
                         <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-2">
                                 <Label htmlFor={`sessionWindow-${day.id}`}>Window</Label>
@@ -270,13 +322,9 @@ export function EventDaySection({ day, canManage }: { day: EventDayWithSessions;
                             </div>
                         </div>
 
-                        <div className="flex gap-2">
-                            <Button type="submit" size="sm" disabled={createSession.isPending}>
-                                {createSession.isPending ? 'Adding…' : 'Add session'}
-                            </Button>
+                        <DialogFooter>
                             <Button
                                 type="button"
-                                size="sm"
                                 variant="outline"
                                 onClick={() => {
                                     setIsCreating(false);
@@ -285,15 +333,13 @@ export function EventDaySection({ day, canManage }: { day: EventDayWithSessions;
                             >
                                 Cancel
                             </Button>
-                        </div>
+                            <Button type="submit" disabled={createSession.isPending}>
+                                {createSession.isPending ? 'Adding…' : 'Add session'}
+                            </Button>
+                        </DialogFooter>
                     </form>
-                ) : (
-                    availableWindowOptions.length > 0 && (
-                        <Button size="sm" variant="outline" onClick={() => setIsCreating(true)} className="w-full">
-                            Add session
-                        </Button>
-                    )
-                ))}
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

@@ -1,5 +1,6 @@
 import type { AuthenticatedUser } from '@/domain/entities';
 
+
 export interface LoginCredentials {
     username: string;
     password: string;
@@ -7,8 +8,8 @@ export interface LoginCredentials {
 
 export interface ChangePasswordPayload {
     current_password: string;
-    password: string;
-    password_confirmation: string;
+    new_password: string;
+    new_password_confirmation: string;
 }
 
 /**
@@ -20,5 +21,6 @@ export interface ChangePasswordPayload {
 export interface AuthRepository {
     login(credentials: LoginCredentials): Promise<AuthenticatedUser>;
     changePassword(payload: ChangePasswordPayload): Promise<void>;
+    acceptTerms(): Promise<void>;
     logout(): Promise<void>;
 }

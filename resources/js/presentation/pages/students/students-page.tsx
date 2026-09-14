@@ -3,7 +3,8 @@ import { toast } from 'sonner';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -79,6 +80,7 @@ export function StudentsPage() {
     const [createForm, setCreateForm] = useState<CreateFormValues>(EMPTY_CREATE_FORM);
     const createStudent = useCreateStudent();
 
+    const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
     const [importReport, setImportReport] = useState<BulkImportReport | null>(null);
     const [preview, setPreview] = useState<BulkImportPreview | null>(null);
     const [pendingFile, setPendingFile] = useState<File | null>(null);
@@ -231,260 +233,264 @@ export function StudentsPage() {
                         {isScAdmin ? 'Your department\u2019s roster.' : 'The full student roster across every department.'}
                     </Text>
                 </div>
-                {!isAdding && (
-                    <Button onClick={() => setIsAdding(true)} size="sm">
+                <div className="flex shrink-0 gap-2">
+                    <Button variant="outline" size="sm" onClick={() => setIsBulkImportOpen(true)}>
+                        Bulk import
+                    </Button>
+                    <Button size="sm" onClick={() => setIsAdding(true)}>
                         Add student
                     </Button>
-                )}
+                </div>
             </div>
 
-            {isAdding && (
-                <Card>
-                    <CardHeader>
-                        <Text variant="small">New student</Text>
-                    </CardHeader>
-                    <CardContent>
-                        <form onSubmit={handleCreateSubmit} className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
+            <Dialog open={isAdding} onOpenChange={(open) => (open ? setIsAdding(true) : resetCreateForm())}>
+                <DialogContent className="sm:max-w-xl">
+                    <DialogHeader>
+                        <DialogTitle>New student</DialogTitle>
+                    </DialogHeader>
+                    <form onSubmit={handleCreateSubmit} className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="studentNumber">Student ID</Label>
+                                <Input
+                                    id="studentNumber"
+                                    value={createForm.studentNumber}
+                                    onChange={(e) => setCreateForm((f) => ({ ...f, studentNumber: e.target.value }))}
+                                    required
+                                />
+                            </div>
+                            {!isScAdmin && (
                                 <div className="space-y-2">
-                                    <Label htmlFor="studentNumber">Student ID</Label>
-                                    <Input
-                                        id="studentNumber"
-                                        value={createForm.studentNumber}
-                                        onChange={(e) => setCreateForm((f) => ({ ...f, studentNumber: e.target.value }))}
-                                        required
-                                    />
+                                    <Label htmlFor="department">Department</Label>
+                                    <Select
+                                        value={createForm.departmentId}
+                                        onValueChange={(value) => setCreateForm((f) => ({ ...f, departmentId: value }))}
+                                    >
+                                        <SelectTrigger id="department" className="w-full">
+                                            <SelectValue placeholder="Select department" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {departments?.map((dept) => (
+                                                <SelectItem key={dept.id} value={String(dept.id)}>
+                                                    {dept.code} — {dept.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
                                 </div>
-                                {!isScAdmin && (
-                                    <div className="space-y-2">
-                                        <Label htmlFor="department">Department</Label>
-                                        <Select
-                                            value={createForm.departmentId}
-                                            onValueChange={(value) => setCreateForm((f) => ({ ...f, departmentId: value }))}
-                                        >
-                                            <SelectTrigger id="department" className="w-full">
-                                                <SelectValue placeholder="Select department" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {departments?.map((dept) => (
-                                                    <SelectItem key={dept.id} value={String(dept.id)}>
-                                                        {dept.code} — {dept.name}
-                                                    </SelectItem>
+                            )}
+                        </div>
+                        <div className="grid grid-cols-3 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="lastName">Last name</Label>
+                                <Input
+                                    id="lastName"
+                                    value={createForm.lastName}
+                                    onChange={(e) => setCreateForm((f) => ({ ...f, lastName: e.target.value }))}
+                                    required
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="firstName">First name</Label>
+                                <Input
+                                    id="firstName"
+                                    value={createForm.firstName}
+                                    onChange={(e) => setCreateForm((f) => ({ ...f, firstName: e.target.value }))}
+                                    required
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="middleName">Middle name</Label>
+                                <Input
+                                    id="middleName"
+                                    value={createForm.middleName}
+                                    onChange={(e) => setCreateForm((f) => ({ ...f, middleName: e.target.value }))}
+                                    required
+                                />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-3 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="suffix">Suffix</Label>
+                                <Input
+                                    id="suffix"
+                                    placeholder="Jr., III, etc."
+                                    value={createForm.suffix}
+                                    onChange={(e) => setCreateForm((f) => ({ ...f, suffix: e.target.value }))}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="yearLevel">Year level</Label>
+                                <Input
+                                    id="yearLevel"
+                                    placeholder="1"
+                                    value={createForm.yearLevel}
+                                    onChange={(e) => setCreateForm((f) => ({ ...f, yearLevel: e.target.value }))}
+                                    required
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="section">Section</Label>
+                                <Input
+                                    id="section"
+                                    placeholder="A"
+                                    value={createForm.section}
+                                    onChange={(e) => setCreateForm((f) => ({ ...f, section: e.target.value }))}
+                                />
+                            </div>
+                        </div>
+                        <Text variant="caption">
+                            Default password is <span className="font-medium">password123</span> — the student must change
+                            it on first login.
+                        </Text>
+                        <div className="flex gap-2">
+                            <Button type="submit" disabled={createStudent.isPending}>
+                                {createStudent.isPending ? 'Adding…' : 'Add student'}
+                            </Button>
+                            <Button type="button" variant="outline" onClick={resetCreateForm}>
+                                Cancel
+                            </Button>
+                        </div>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={isBulkImportOpen} onOpenChange={setIsBulkImportOpen}>
+                <DialogContent className="sm:max-w-xl">
+                    <DialogHeader>
+                        <DialogTitle>Bulk import</DialogTitle>
+                        <DialogDescription>
+                            Upload an Excel/CSV file (max 1,000 rows per file — split larger rosters into batches). You'll
+                            see a full preview before anything is saved.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-4">
+                        <div className="flex flex-wrap gap-2">
+                            <Button type="button" variant="outline" size="sm" onClick={downloadTemplate} disabled={isDownloading}>
+                                {isDownloading ? 'Downloading…' : 'Download template'}
+                            </Button>
+                            <Button
+                                type="button"
+                                size="sm"
+                                onClick={() => fileInputRef.current?.click()}
+                                disabled={previewBulkImportStudents.isPending || !!preview}
+                            >
+                                {previewBulkImportStudents.isPending ? 'Reading file…' : 'Choose file'}
+                            </Button>
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept=".xlsx,.xls,.csv"
+                                className="hidden"
+                                onChange={handleFileChange}
+                            />
+                        </div>
+
+                        {preview && (
+                            <div className="space-y-3 rounded-md border border-border p-3">
+                                <Text variant="small" className="font-medium">
+                                    Preview — nothing has been saved yet
+                                </Text>
+                                <Text variant="small">
+                                    {preview.valid} of {preview.totalRows} rows are ready to import
+                                    {preview.invalid > 0 ? `; ${preview.invalid} have errors and will be skipped` : ''}.
+                                </Text>
+
+                                {preview.invalid > 0 && (
+                                    <div className="space-y-1">
+                                        <Text variant="caption" className="font-medium">
+                                            Rows with errors
+                                        </Text>
+                                        <ul className="max-h-56 space-y-1 overflow-y-auto">
+                                            {preview.rows
+                                                .filter((row) => !row.valid)
+                                                .map((row) => (
+                                                    <li key={row.row}>
+                                                        <Text variant="caption">
+                                                            Row {row.row}
+                                                            {row.studentNumber ? ` (${row.studentNumber})` : ''}:{' '}
+                                                            {row.reasons.join('; ')}
+                                                        </Text>
+                                                    </li>
                                                 ))}
-                                            </SelectContent>
-                                        </Select>
+                                        </ul>
                                     </div>
                                 )}
-                            </div>
-                            <div className="grid grid-cols-3 gap-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="lastName">Last name</Label>
-                                    <Input
-                                        id="lastName"
-                                        value={createForm.lastName}
-                                        onChange={(e) => setCreateForm((f) => ({ ...f, lastName: e.target.value }))}
-                                        required
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="firstName">First name</Label>
-                                    <Input
-                                        id="firstName"
-                                        value={createForm.firstName}
-                                        onChange={(e) => setCreateForm((f) => ({ ...f, firstName: e.target.value }))}
-                                        required
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="middleName">Middle name</Label>
-                                    <Input
-                                        id="middleName"
-                                        value={createForm.middleName}
-                                        onChange={(e) => setCreateForm((f) => ({ ...f, middleName: e.target.value }))}
-                                        required
-                                    />
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-3 gap-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="suffix">Suffix</Label>
-                                    <Input
-                                        id="suffix"
-                                        placeholder="Jr., III, etc."
-                                        value={createForm.suffix}
-                                        onChange={(e) => setCreateForm((f) => ({ ...f, suffix: e.target.value }))}
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="yearLevel">Year level</Label>
-                                    <Input
-                                        id="yearLevel"
-                                        placeholder="1"
-                                        value={createForm.yearLevel}
-                                        onChange={(e) => setCreateForm((f) => ({ ...f, yearLevel: e.target.value }))}
-                                        required
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="section">Section</Label>
-                                    <Input
-                                        id="section"
-                                        placeholder="A"
-                                        value={createForm.section}
-                                        onChange={(e) => setCreateForm((f) => ({ ...f, section: e.target.value }))}
-                                    />
-                                </div>
-                            </div>
-                            <Text variant="caption">
-                                Default password is <span className="font-medium">password123</span> — the student must change
-                                it on first login.
-                            </Text>
-                            <div className="flex gap-2">
-                                <Button type="submit" disabled={createStudent.isPending}>
-                                    {createStudent.isPending ? 'Adding…' : 'Add student'}
-                                </Button>
-                                <Button type="button" variant="outline" onClick={resetCreateForm}>
-                                    Cancel
-                                </Button>
-                            </div>
-                        </form>
-                    </CardContent>
-                </Card>
-            )}
 
-            <Card>
-                <CardHeader>
-                    <Text variant="small">Bulk import</Text>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <Text variant="caption">
-                        Upload an Excel/CSV file (max 1,000 rows per file — split larger rosters into batches). You'll
-                        see a full preview before anything is saved.
-                    </Text>
-                    <div className="flex flex-wrap gap-2">
-                        <Button type="button" variant="outline" size="sm" onClick={downloadTemplate} disabled={isDownloading}>
-                            {isDownloading ? 'Downloading…' : 'Download template'}
-                        </Button>
-                        <Button
-                            type="button"
-                            size="sm"
-                            onClick={() => fileInputRef.current?.click()}
-                            disabled={previewBulkImportStudents.isPending || !!preview}
-                        >
-                            {previewBulkImportStudents.isPending ? 'Reading file…' : 'Choose file'}
-                        </Button>
-                        <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept=".xlsx,.xls,.csv"
-                            className="hidden"
-                            onChange={handleFileChange}
-                        />
+                                {preview.valid > 0 && (
+                                    <div className="space-y-1">
+                                        <Text variant="caption" className="font-medium">
+                                            Ready to import (first 20 shown)
+                                        </Text>
+                                        <ul className="max-h-56 space-y-1 overflow-y-auto">
+                                            {preview.rows
+                                                .filter((row) => row.valid)
+                                                .slice(0, 20)
+                                                .map((row) => (
+                                                    <li key={row.row}>
+                                                        <Text variant="caption">
+                                                            {row.studentNumber} — {row.lastName}, {row.firstName} (
+                                                            {row.departmentCode} · Yr {row.yearLevel}
+                                                            {row.section ? ` · ${row.section}` : ''})
+                                                        </Text>
+                                                    </li>
+                                                ))}
+                                        </ul>
+                                        {preview.valid > 20 && (
+                                            <Text variant="caption">and {preview.valid - 20} more…</Text>
+                                        )}
+                                    </div>
+                                )}
+
+                                <div className="flex gap-2 pt-1">
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        onClick={handleConfirmImport}
+                                        disabled={preview.valid === 0 || bulkImportStudents.isPending}
+                                    >
+                                        {bulkImportStudents.isPending
+                                            ? 'Importing…'
+                                            : `Confirm — import ${preview.valid} student${preview.valid === 1 ? '' : 's'}`}
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={handleCancelImport}
+                                        disabled={bulkImportStudents.isPending}
+                                    >
+                                        Cancel
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
+
+                        {importReport && (
+                            <div className="space-y-2 rounded-md border border-border p-3">
+                                <Text variant="small">
+                                    {importReport.imported} of {importReport.totalRows} rows imported
+                                    {importReport.failed > 0 ? `, ${importReport.failed} failed` : ''}.
+                                </Text>
+                                {importReport.errors.length > 0 && (
+                                    <ul className="space-y-1">
+                                        {importReport.errors.map((error) => (
+                                            <li key={error.row}>
+                                                <Text variant="caption">
+                                                    Row {error.row}
+                                                    {error.studentNumber ? ` (${error.studentNumber})` : ''}:{' '}
+                                                    {error.reasons.join('; ')}
+                                                </Text>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </div>
+                        )}
                     </div>
-
-                    {preview && (
-                        <div className="space-y-3 rounded-md border border-border p-3">
-                            <Text variant="small" className="font-medium">
-                                Preview — nothing has been saved yet
-                            </Text>
-                            <Text variant="small">
-                                {preview.valid} of {preview.totalRows} rows are ready to import
-                                {preview.invalid > 0 ? `; ${preview.invalid} have errors and will be skipped` : ''}.
-                            </Text>
-
-                            {preview.invalid > 0 && (
-                                <div className="space-y-1">
-                                    <Text variant="caption" className="font-medium">
-                                        Rows with errors
-                                    </Text>
-                                    <ul className="max-h-56 space-y-1 overflow-y-auto">
-                                        {preview.rows
-                                            .filter((row) => !row.valid)
-                                            .map((row) => (
-                                                <li key={row.row}>
-                                                    <Text variant="caption">
-                                                        Row {row.row}
-                                                        {row.studentNumber ? ` (${row.studentNumber})` : ''}:{' '}
-                                                        {row.reasons.join('; ')}
-                                                    </Text>
-                                                </li>
-                                            ))}
-                                    </ul>
-                                </div>
-                            )}
-
-                            {preview.valid > 0 && (
-                                <div className="space-y-1">
-                                    <Text variant="caption" className="font-medium">
-                                        Ready to import (first 20 shown)
-                                    </Text>
-                                    <ul className="max-h-56 space-y-1 overflow-y-auto">
-                                        {preview.rows
-                                            .filter((row) => row.valid)
-                                            .slice(0, 20)
-                                            .map((row) => (
-                                                <li key={row.row}>
-                                                    <Text variant="caption">
-                                                        {row.studentNumber} — {row.lastName}, {row.firstName} (
-                                                        {row.departmentCode} · Yr {row.yearLevel}
-                                                        {row.section ? ` · ${row.section}` : ''})
-                                                    </Text>
-                                                </li>
-                                            ))}
-                                    </ul>
-                                    {preview.valid > 20 && (
-                                        <Text variant="caption">and {preview.valid - 20} more…</Text>
-                                    )}
-                                </div>
-                            )}
-
-                            <div className="flex gap-2 pt-1">
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    onClick={handleConfirmImport}
-                                    disabled={preview.valid === 0 || bulkImportStudents.isPending}
-                                >
-                                    {bulkImportStudents.isPending
-                                        ? 'Importing…'
-                                        : `Confirm — import ${preview.valid} student${preview.valid === 1 ? '' : 's'}`}
-                                </Button>
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={handleCancelImport}
-                                    disabled={bulkImportStudents.isPending}
-                                >
-                                    Cancel
-                                </Button>
-                            </div>
-                        </div>
-                    )}
-
-                    {importReport && (
-                        <div className="space-y-2 rounded-md border border-border p-3">
-                            <Text variant="small">
-                                {importReport.imported} of {importReport.totalRows} rows imported
-                                {importReport.failed > 0 ? `, ${importReport.failed} failed` : ''}.
-                            </Text>
-                            {importReport.errors.length > 0 && (
-                                <ul className="space-y-1">
-                                    {importReport.errors.map((error) => (
-                                        <li key={error.row}>
-                                            <Text variant="caption">
-                                                Row {error.row}
-                                                {error.studentNumber ? ` (${error.studentNumber})` : ''}:{' '}
-                                                {error.reasons.join('; ')}
-                                            </Text>
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
+                </DialogContent>
+            </Dialog>
 
             <div className="space-y-3">
                 <div className="flex flex-wrap gap-2">

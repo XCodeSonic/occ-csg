@@ -11,6 +11,13 @@ export function GuestRoute() {
     const token = useAuthStore((state) => state.token);
     const student = useAuthStore((state) => state.student);
 
+    // A session that hasn't accepted terms yet stays on /login rather than
+    // being redirected away — LoginPage itself notices this on mount and
+    // re-opens the acceptance modal, so refreshing mid-flow doesn't skip it.
+    if (token && student && !student.hasAcceptedTerms) {
+        return <Outlet />;
+    }
+
     if (token && student) {
         return <Navigate to={student.mustChangePassword ? '/change-password' : '/dashboard'} replace />;
     }

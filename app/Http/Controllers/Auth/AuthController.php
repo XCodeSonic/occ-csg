@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Application\Actions\Auth\AcceptStudentTerms;
 use App\Application\Actions\Auth\AuthenticateStudent;
 use App\Application\Actions\Auth\ChangeStudentPassword;
 use App\Http\Controllers\Controller;
@@ -44,6 +45,13 @@ class AuthController extends Controller
         );
 
         return response()->json(['message' => 'Password updated.']);
+    }
+
+    public function acceptTerms(Request $request, AcceptStudentTerms $acceptStudentTerms)
+    {
+        $student = $acceptStudentTerms($request->user());
+
+        return response()->json(['student' => $student]);
     }
 
     public function me(Request $request)

@@ -2,9 +2,11 @@
 
 namespace App\Application\Actions\Sessions;
 
+use App\Domain\Enums\Role;
 use App\Domain\Enums\SessionStatus;
 use App\Domain\Exceptions\SessionNotAcceptingScansException;
 use App\Domain\Exceptions\StaleQrCodeException;
+use App\Domain\Exceptions\StudentDepartmentNotIncludedException;
 use App\Domain\Exceptions\StudentExcludedException;
 use App\Domain\Exceptions\StudentNotEligibleForAttendanceException;
 use App\Domain\ValueObjects\QrPayload;
@@ -43,13 +45,20 @@ final class ScanAttendance
             throw new StaleQrCodeException;
         }
 
-        // Excluded here, not just skipped by EndSession's sweep, so a
-        // staff/officiating scan is rejected at the point of scanning
-        // rather than silently accepted and only quietly ignored later.
-        // See Student::isAttendanceEligibleForEvent for exactly which
-        // roles/scopes this covers.
-        if (! $student->isAttendanceEligibleForEvent($session->eventDay->event_id)) {
+        // Checked here, not just skipped by EndSession's sweep, so a
+        // staff/officiating scan or a wrong-department scan is rejected
+        // at the point of scanning rather than silently accepted and
+        // only quietly ignored later. Split into two checks (rather than
+        // one call to Student::isAttendanceEligibleForEvent) so the
+        // officer sees the actual reason instead of one generic message.
+        if ($student->role !== Role::Student) {
             throw new StudentNotEligibleForAttendanceException;
+        }
+
+        $event = $session->eventDay->event;
+
+        if (! $event->includesDepartment($student->department_id)) {
+            throw new StudentDepartmentNotIncludedException;
         }
 
         if ($session->status !== SessionStatus::Ongoing) {
@@ -81,12 +90,29 @@ final class ScanAttendance
         // time into an absolute instant, not persisting a "now" value.
         $now = Carbon::now();
 
-        return AttendanceRecord::create([
-            'session_id' => $session->id,
-            'student_id' => $student->id,
-            'scanned_at' => $now,
-            'status' => $session->window()->classify($now),
-            'scanned_by' => $scannedByStaffId,
-        ]);
+        try {
+            return AttendanceRecord::create([
+                'session_id' => $session->id,
+                'student_id' => $student->id,
+                'scanned_at' => $now,
+                'status' => $session->window()->classify($now),
+                'scanned_by' => $scannedByStaffId,
+            ]);
+        } catch (\Illuminate\Database\UniqueConstraintViolationException) {
+            // Two officers scanning the same badge within milliseconds of
+            // each other can both pass the $existing check above as null
+            // before either INSERT commits — with 5-10 officers scanning
+            // concurrently this isn't a theoretical edge case. The unique
+            // index on (session_id, student_id) guarantees only one row
+            // ever exists, but the *losing* request would otherwise
+            // surface a raw DB exception to that officer's scanner instead
+            // of the same graceful "already scanned" no-op the sequential
+            // duplicate path above returns. Re-fetch and return the row
+            // the other request just won, so both officers see a normal
+            // (if one of them slightly delayed) success/duplicate result.
+            return AttendanceRecord::where('session_id', $session->id)
+                ->where('student_id', $student->id)
+                ->firstOrFail();
+        }
     }
 }

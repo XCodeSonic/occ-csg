@@ -9,11 +9,15 @@ import { PersonalInformationPage } from '@/presentation/pages/account/personal-i
 import { ChangePasswordPage } from '@/presentation/pages/auth/change-password-page';
 import { LoginPage } from '@/presentation/pages/auth/login-page';
 import { DashboardPage } from '@/presentation/pages/dashboard/dashboard-page';
+import { DepartmentsPage } from '@/presentation/pages/departments/departments-page';
 import { EventDetailPage } from '@/presentation/pages/events/event-detail-page';
 import { EventsPage } from '@/presentation/pages/events/events-page';
 import { ErrorPage } from '@/presentation/pages/errors/error-page';
 import { NotFoundPage } from '@/presentation/pages/errors/not-found-page';
+import { PenaltiesPage } from '@/presentation/pages/penalties/penalties-page';
 import { QrPage } from '@/presentation/pages/profile/qr-page';
+import { EventRosterReportPage } from '@/presentation/pages/reports/event-roster-report-page';
+import { MasterReportPage } from '@/presentation/pages/reports/master-report-page';
 import { ScanPage } from '@/presentation/pages/scan/scan-page';
 import { SettingsPage } from '@/presentation/pages/settings/settings-page';
 import { StudentsPage } from '@/presentation/pages/students/students-page';
@@ -38,8 +42,12 @@ export const router = createBrowserRouter([
                         children: [
                             { path: '/dashboard', element: <DashboardPage /> },
                             { path: '/academic-years', element: <AcademicYearsPage /> },
+                            { path: '/departments', element: <DepartmentsPage /> },
                             { path: '/events', element: <EventsPage /> },
                             { path: '/events/:eventId', element: <EventDetailPage /> },
+                            { path: '/events/:eventId/report', element: <EventRosterReportPage /> },
+                            { path: '/penalties', element: <PenaltiesPage /> },
+                            { path: '/reports', element: <MasterReportPage /> },
                             { path: '/students', element: <StudentsPage /> },
                             { path: '/account', element: <AccountPage /> },
                             { path: '/account/personal-information', element: <PersonalInformationPage /> },

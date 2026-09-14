@@ -1,10 +1,12 @@
 import { httpClient } from '@/infrastructure/http/client';
 import type { AttendanceStatus, CheckType, EventStatus, SessionStatus, WindowType } from '@/domain/enums';
-import type { EventWithDays } from '@/domain/entities';
+import type { EventDepartment, EventWithDays } from '@/domain/entities';
 
 export interface CreateEventPayload {
     name: string;
     description?: string | null;
+    /** At least one required — see backend StoreEventRequest. */
+    department_ids: number[];
 }
 
 export interface CreateEventDayPayload {
@@ -53,6 +55,10 @@ interface RawEvent {
         academic_year?: { id: number; name: string } | null;
     } | null;
     days?: RawDay[];
+    // Present when the controller eager-loads 'departments' (index()) —
+    // absent departments means "not requested", NOT "no restriction";
+    // toEvent() below always normalizes to [] either way.
+    departments?: Array<{ id: number; name: string; code: string }>;
 }
 
 function toEvent(raw: RawEvent): EventWithDays {
@@ -65,6 +71,13 @@ function toEvent(raw: RawEvent): EventWithDays {
         status: raw.status as EventStatus,
         semesterTerm: raw.semester?.name ?? null,
         academicYearName: raw.semester?.academic_year?.name ?? null,
+        departments: (raw.departments ?? []).map(
+            (department): EventDepartment => ({
+                id: department.id,
+                name: department.name,
+                code: department.code,
+            }),
+        ),
         days: (raw.days ?? []).map((day) => ({
             id: day.id,
             eventId: day.event_id,

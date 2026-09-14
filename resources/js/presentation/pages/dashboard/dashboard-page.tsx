@@ -1,348 +1,3 @@
-// import type { ReactNode } from 'react';
-// import { Link } from 'react-router-dom';
-
-// import { Badge } from '@/components/ui/badge';
-// import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-// import { useAuthStore } from '@/application/auth/auth.store';
-// import { useDashboard } from '@/application/dashboard/use-dashboard';
-// import type {
-//     DashboardActiveSession,
-//     DashboardEventPenalty,
-//     DashboardOverallCounts,
-//     DashboardSessionCounts,
-//     DashboardSummary,
-//     OfficerDashboardSummary,
-//     StudentDashboardSummary,
-// } from '@/infrastructure/dashboard/dashboard.repository.http';
-// import {
-//     ATTENDANCE_STATUS_BADGE_CLASS,
-//     ATTENDANCE_STATUS_LABEL,
-//     AttendanceStatus,
-//     CHECK_TYPE_LABEL,
-//     Role,
-//     WINDOW_TYPE_LABEL,
-// } from '@/domain/enums';
-// import { formatCurrency, formatDate, formatTimeOfDay } from '@/lib/utils';
-// import { Heading, Text } from '@/presentation/components/typography';
-
-// function isOfficerSummary(summary: DashboardSummary): summary is OfficerDashboardSummary {
-//     return summary.role === Role.Officer;
-// }
-
-// function isStudentSummary(summary: DashboardSummary): summary is StudentDashboardSummary {
-//     return summary.role === Role.Student;
-// }
-
-// export function DashboardPage() {
-//     const student = useAuthStore((state) => state.student);
-//     const { data, isLoading, isError } = useDashboard();
-
-//     if (!student) return null;
-
-//     return (
-//         <div className="space-y-8">
-//             <div>
-//                 <Heading level="h1">Dashboard</Heading>
-//                 <Text variant="small">{subtitleFor(data, student.role)}</Text>
-//             </div>
-
-//             {isLoading && <Text variant="small">Loading…</Text>}
-
-//             {isError && <Text variant="small">Couldn't load the dashboard. Try refreshing.</Text>}
-
-//             {data && isOfficerSummary(data) && <OfficerDashboard summary={data} />}
-//             {data && isStudentSummary(data) && <StudentDashboard summary={data} />}
-//             {data && !isOfficerSummary(data) && !isStudentSummary(data) && <AdminDashboard summary={data} />}
-//         </div>
-//     );
-// }
-
-// function subtitleFor(data: DashboardSummary | undefined, role: string): string {
-//     if (!data) {
-//         return 'Loading your dashboard…';
-//     }
-
-//     if (isOfficerSummary(data)) {
-//         return 'Your scanning activity across every session.';
-//     }
-
-//     if (isStudentSummary(data)) {
-//         return 'Your attendance record and current standing.';
-//     }
-
-//     if (data.scope === 'department' && data.department) {
-//         return `${data.department.name} (${data.department.code}) overview.`;
-//     }
-
-//     if (role === Role.SystemAdmin) {
-//         return 'Every department, every event, at a glance.';
-//     }
-
-//     return 'Every department, every event, at a glance.';
-// }
-
-// function AdminDashboard({
-//     summary,
-// }: {
-//     summary: Extract<DashboardSummary, { scope: 'global' | 'department' }>;
-// }) {
-//     return (
-//         <div className="space-y-8">
-//             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-//                 <StatCard
-//                     label={summary.scope === 'department' ? 'Students in department' : 'Total students'}
-//                     value={summary.totalStudents}
-//                 />
-//                 <StatCard label="Events" value={summary.eventsCount} />
-//                 <StatCard
-//                     label="Live session"
-//                     value={summary.activeSession ? 'Ongoing' : 'None'}
-//                     highlight={!!summary.activeSession}
-//                 />
-//             </div>
-
-//             <ActiveSessionCard session={summary.activeSession} />
-
-//             {summary.activeSession && summary.activeSessionCounts && (
-//                 <div className="space-y-2">
-//                     <Text variant="caption">Attendance for this session</Text>
-//                     <AttendanceCountsGrid counts={summary.activeSessionCounts} />
-//                 </div>
-//             )}
-
-//             {/*
-//                 Always shown, regardless of whether a session is currently
-//                 ongoing — this is a sum across every event, not just
-//                 whatever happens to be active right now. The block above
-//                 (activeSessionCounts) disappears the moment nothing is
-//                 ongoing, e.g. between windows or once CSG has ended an
-//                 event; this one is the admin's persistent attendance
-//                 picture and never goes away.
-//             */}
-//             <div className="space-y-2">
-//                 <Text variant="caption">Attendance across all events</Text>
-//                 <OverallCountsGrid counts={summary.overallAttendanceCounts} />
-//             </div>
-
-//             <div className="space-y-2">
-//                 <Text variant="caption">Penalties across all events</Text>
-//                 <StatCard label="Total penalty balance" value={formatCurrency(summary.penaltyTotal)} highlight />
-//                 <PenaltyByEventList rows={summary.penaltyByEvent} />
-//             </div>
-//         </div>
-//     );
-// }
-
-// function OfficerDashboard({ summary }: { summary: OfficerDashboardSummary }) {
-//     return (
-//         <div className="space-y-8">
-//             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-//                 <StatCard label="Your scans" value={summary.myScans} />
-//                 <StatCard label="Total scans (all officers)" value={summary.totalScans} />
-//                 <StatCard label="Your contribution" value={`${summary.contributionPercentage}%`} highlight />
-//             </div>
-
-//             <Card>
-//                 <CardHeader className="gap-1 pb-2">
-//                     <CardDescription>Share of all officer scans</CardDescription>
-//                     <CardTitle className="text-h2">{summary.contributionPercentage}%</CardTitle>
-//                 </CardHeader>
-//                 <CardContent>
-//                     <ContributionBar percentage={summary.contributionPercentage} />
-//                     <Text variant="small" className="mt-2">
-//                         {summary.myScans} of {summary.totalScans} total scans recorded across every officer.
-//                     </Text>
-//                 </CardContent>
-//             </Card>
-
-//             <ActiveSessionCard session={summary.activeSession} />
-//         </div>
-//     );
-// }
-
-// function StudentDashboard({ summary }: { summary: StudentDashboardSummary }) {
-//     const statuses: { status: AttendanceStatus; value: number }[] = [
-//         { status: AttendanceStatus.Present, value: summary.totals.present },
-//         { status: AttendanceStatus.Late, value: summary.totals.late },
-//         { status: AttendanceStatus.Absent, value: summary.totals.absent },
-//         { status: AttendanceStatus.Excluded, value: summary.totals.excluded },
-//     ];
-
-//     return (
-//         <div className="space-y-8">
-//             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-//                 {statuses.map((item) => (
-//                     <StatusCard key={item.status} status={item.status} value={item.value} />
-//                 ))}
-//             </div>
-
-//             <StatCard label="Penalty balance" value={formatCurrency(summary.penaltyTotal)} />
-
-//             <div className="space-y-2">
-//                 <div className="flex items-center justify-between">
-//                     <Text variant="caption">Current session</Text>
-//                     {summary.activeSession && summary.activeSessionStatus && (
-//                         <Badge
-//                             variant="secondary"
-//                             className={ATTENDANCE_STATUS_BADGE_CLASS[summary.activeSessionStatus]}
-//                         >
-//                             {ATTENDANCE_STATUS_LABEL[summary.activeSessionStatus]}
-//                         </Badge>
-//                     )}
-//                     {summary.activeSession && !summary.activeSessionStatus && (
-//                         <Badge variant="secondary" className={ATTENDANCE_STATUS_BADGE_CLASS[AttendanceStatus.Pending]}>
-//                             {ATTENDANCE_STATUS_LABEL[AttendanceStatus.Pending]}
-//                         </Badge>
-//                     )}
-//                 </div>
-//                 <ActiveSessionCard session={summary.activeSession} />
-//             </div>
-//         </div>
-//     );
-// }
-
-// function ActiveSessionCard({ session }: { session: DashboardActiveSession | null }) {
-//     if (!session) {
-//         return (
-//             <Card>
-//                 <CardContent className="pt-6">
-//                     <Text variant="small">No session is currently open.</Text>
-//                 </CardContent>
-//             </Card>
-//         );
-//     }
-
-//     return (
-//         <Card>
-//             <CardHeader className="gap-1 pb-2">
-//                 <div className="flex items-center gap-2">
-//                     <span className="relative flex size-2">
-//                         <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-//                         <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
-//                     </span>
-//                     <CardDescription>Active session</CardDescription>
-//                 </div>
-//                 <CardTitle className="text-h2">
-//                     <Link to={`/events/${session.eventId}`} className="hover:underline">
-//                         {session.eventName}
-//                     </Link>
-//                 </CardTitle>
-//             </CardHeader>
-//             <CardContent className="space-y-1">
-//                 <Text variant="small">
-//                     Day {session.eventDay.dayNumber} — {formatDate(session.eventDay.date)}
-//                 </Text>
-//                 <Text variant="small">
-//                     {WINDOW_TYPE_LABEL[session.windowType]} · {CHECK_TYPE_LABEL[session.checkType]} ·{' '}
-//                     {formatTimeOfDay(session.startTime)}–{formatTimeOfDay(session.endTime)}
-//                 </Text>
-//             </CardContent>
-//         </Card>
-//     );
-// }
-
-// function AttendanceCountsGrid({ counts }: { counts: DashboardSessionCounts }) {
-//     const items: { status: AttendanceStatus; value: number }[] = [
-//         { status: AttendanceStatus.Present, value: counts.present },
-//         { status: AttendanceStatus.Late, value: counts.late },
-//         { status: AttendanceStatus.Absent, value: counts.absent },
-//         { status: AttendanceStatus.Excluded, value: counts.excluded },
-//         { status: AttendanceStatus.Pending, value: counts.pending },
-//     ];
-
-//     return (
-//         <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
-//             {items.map((item) => (
-//                 <StatusCard key={item.status} status={item.status} value={item.value} total={counts.totalStudents} />
-//             ))}
-//         </div>
-//     );
-// }
-
-// function OverallCountsGrid({ counts }: { counts: DashboardOverallCounts }) {
-//     const items: { status: AttendanceStatus; value: number }[] = [
-//         { status: AttendanceStatus.Present, value: counts.present },
-//         { status: AttendanceStatus.Late, value: counts.late },
-//         { status: AttendanceStatus.Absent, value: counts.absent },
-//     ];
-
-//     return (
-//         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-//             {items.map((item) => (
-//                 <StatusCard key={item.status} status={item.status} value={item.value} />
-//             ))}
-//         </div>
-//     );
-// }
-
-// function PenaltyByEventList({ rows }: { rows: DashboardEventPenalty[] }) {
-//     if (rows.length === 0) {
-//         return (
-//             <Card>
-//                 <CardContent className="pt-6">
-//                     <Text variant="small">No penalties recorded yet.</Text>
-//                 </CardContent>
-//             </Card>
-//         );
-//     }
-
-//     return (
-//         <Card>
-//             <CardContent className="divide-y divide-border pt-6">
-//                 {rows.map((row) => (
-//                     <Link
-//                         key={row.eventId}
-//                         to={`/events/${row.eventId}`}
-//                         className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0 hover:underline"
-//                     >
-//                         <Text variant="small">{row.eventName}</Text>
-//                         <Text className="font-medium">{formatCurrency(row.penaltyTotal)}</Text>
-//                     </Link>
-//                 ))}
-//             </CardContent>
-//         </Card>
-//     );
-// }
-
-// function StatusCard({ status, value, total }: { status: AttendanceStatus; value: number; total?: number }) {
-//     return (
-//         <Card>
-//             <CardHeader className="gap-1 pb-2">
-//                 <CardDescription>{ATTENDANCE_STATUS_LABEL[status]}</CardDescription>
-//                 <CardTitle className="text-h1">{value}</CardTitle>
-//             </CardHeader>
-//             <CardContent>
-//                 <Badge variant="secondary" className={ATTENDANCE_STATUS_BADGE_CLASS[status]}>
-//                     {total !== undefined ? `${value} of ${total}` : ATTENDANCE_STATUS_LABEL[status]}
-//                 </Badge>
-//             </CardContent>
-//         </Card>
-//     );
-// }
-
-// function StatCard({ label, value, highlight }: { label: string; value: ReactNode; highlight?: boolean }) {
-//     return (
-//         <Card>
-//             <CardHeader className="gap-1 pb-2">
-//                 <CardDescription>{label}</CardDescription>
-//                 <CardTitle className={highlight ? 'text-h1 text-emerald-600 dark:text-emerald-400' : 'text-h1'}>
-//                     {value}
-//                 </CardTitle>
-//             </CardHeader>
-//         </Card>
-//     );
-// }
-
-// function ContributionBar({ percentage }: { percentage: number }) {
-//     return (
-//         <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-//             <div
-//                 className="h-full rounded-full bg-primary transition-all"
-//                 style={{ width: `${Math.min(Math.max(percentage, 0), 100)}%` }}
-//             />
-//         </div>
-//     );
-// }
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, type Variants } from 'framer-motion';
@@ -368,6 +23,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuthStore } from '@/application/auth/auth.store';
 import { useDashboard } from '@/application/dashboard/use-dashboard';
+import { useActiveEvents } from '@/application/events/use-active-events';
 import type {
     DashboardActiveSession,
     DashboardDepartmentAttendance,
@@ -380,6 +36,7 @@ import { AttendanceStatus, CHECK_TYPE_LABEL, Role, WINDOW_TYPE_LABEL } from '@/d
 import { cn, formatCurrency, formatDate, formatTimeOfDay } from '@/lib/utils';
 import { Heading, Text } from '@/presentation/components/typography';
 import { AnimatedCounter } from '@/presentation/components/dashboard/animated-counter';
+import { AttendanceStreak, EventAttendanceStreak } from '@/presentation/components/dashboard/attendance-streak';
 import { RadialGauge, SegmentedRing } from '@/presentation/components/dashboard/gauges';
 import { Leaderboard, type LeaderboardEntry } from '@/presentation/components/dashboard/leaderboard';
 
@@ -419,7 +76,7 @@ export function DashboardPage() {
 
             {data && isOfficerSummary(data) && <OfficerDashboard summary={data} />}
             {data && isStudentSummary(data) && <StudentDashboard summary={data} />}
-            {data && !isOfficerSummary(data) && !isStudentSummary(data) && <AdminDashboard summary={data} />}
+            {data && !isOfficerSummary(data) && !isStudentSummary(data) && <AdminDashboard summary={data} role={student.role} />}
         </div>
     );
 }
@@ -470,6 +127,11 @@ function StudentDashboard({ summary }: { summary: StudentDashboardSummary }) {
     const rate = tracked > 0 ? Math.round(((present + late) / tracked) * 100) : null;
     const tier = attendanceTier(rate);
 
+    // Every event CSG hasn't ended yet — plural, since nothing stops more
+    // than one being open at once (see useActiveEvents). Each gets its own
+    // streak card below, not just whichever happened to load first.
+    const { activeEvents, isLoading: isActiveEventsLoading } = useActiveEvents();
+
     const pills: { status: AttendanceStatus; value: number; Icon: LucideIcon; className: string }[] = [
         { status: AttendanceStatus.Present, value: present, Icon: CheckCircle2, className: 'text-emerald-600 dark:text-emerald-400' },
         { status: AttendanceStatus.Late, value: late, Icon: Clock, className: 'text-amber-600 dark:text-amber-400' },
@@ -498,9 +160,16 @@ function StudentDashboard({ summary }: { summary: StudentDashboardSummary }) {
                 ))}
             </motion.div>
 
-            <motion.div variants={item}>
-                <PenaltyStrip total={summary.penaltyTotal} />
-            </motion.div>
+            {isActiveEventsLoading && (
+                <motion.div variants={item}>
+                    <AttendanceStreak event={undefined} isLoading />
+                </motion.div>
+            )}
+            {activeEvents.map((event) => (
+                <motion.div key={event.id} variants={item}>
+                    <EventAttendanceStreak eventId={event.id} />
+                </motion.div>
+            ))}
 
             <motion.div variants={item} className="space-y-2">
                 <div className="flex items-center justify-between">
@@ -555,15 +224,15 @@ function OfficerDashboard({ summary }: { summary: OfficerDashboardSummary }) {
 /* Admin (System Admin / CSG Admin / SC Admin)                            */
 /* ---------------------------------------------------------------------- */
 
-function AdminDashboard({ summary }: { summary: Extract<DashboardSummary, { scope: 'global' | 'department' }> }) {
-    const { present, late, absent } = summary.overallAttendanceCounts;
+// Same tier AttendancePenaltyPolicy::viewAny gates the admin ledger on —
+// an SC Admin sees this same PenaltyStrip card (their dashboard is
+// department-scoped, not role-restricted), but linking them through to
+// /penalties would just 403, so the click-through is gated separately
+// here rather than assumed from "got an AdminDashboard at all".
+const PENALTY_VIEW_ROLES: Role[] = [Role.SystemAdmin, Role.CsgAdmin];
 
-    const departmentEntries: LeaderboardEntry[] = summary.attendanceByDepartment.map((row) => ({
-        id: row.departmentId,
-        label: `${row.departmentName} (${row.departmentCode})`,
-        value: `${row.tracked} tracked`,
-        percentage: row.percentageOfOverall,
-    }));
+function AdminDashboard({ summary, role }: { summary: Extract<DashboardSummary, { scope: 'global' | 'department' }>; role: Role }) {
+    const { present, late, absent } = summary.overallAttendanceCounts;
 
     const penaltyEntries: LeaderboardEntry[] = summary.penaltyByEvent.map((row) => ({
         id: row.eventId,
@@ -579,12 +248,16 @@ function AdminDashboard({ summary }: { summary: Extract<DashboardSummary, { scop
                 {summary.activeSession && summary.activeSessionCounts ? (
                     <LiveHero session={summary.activeSession} counts={summary.activeSessionCounts} />
                 ) : (
-                    <QuietHero totalStudents={summary.totalStudents} eventsCount={summary.eventsCount} scope={summary.scope} />
+                    <QuietHero
+                        totalStudents={summary.totalStudents}
+                        eventsCount={summary.eventsCount}
+                        departmentsCount={summary.attendanceByDepartment.length}
+                    />
                 )}
             </motion.div>
 
             <motion.div variants={item}>
-                <Card className="overflow-hidden">
+                <Card>
                     <CardHeader className="gap-1 pb-2">
                         <div className="flex items-center gap-1.5">
                             <Trophy className="size-4 text-amber-500" />
@@ -609,9 +282,9 @@ function AdminDashboard({ summary }: { summary: Extract<DashboardSummary, { scop
                             </SegmentedRing>
 
                             <div className="grid w-full grid-cols-1 gap-2.5 sm:w-auto">
-                                <StatChip label="Present" value={present} iconClassName="text-emerald-500" Icon={CheckCircle2} />
-                                <StatChip label="Late" value={late} iconClassName="text-amber-500" Icon={Clock} />
-                                <StatChip label="Absent" value={absent} iconClassName="text-red-500" Icon={XCircle} />
+                                <StatChip label="Present" value={present} Icon={CheckCircle2} tone="emerald" />
+                                <StatChip label="Late" value={late} Icon={Clock} tone="amber" />
+                                <StatChip label="Absent" value={absent} Icon={XCircle} tone="red" />
                             </div>
                         </div>
                     </CardContent>
@@ -621,15 +294,7 @@ function AdminDashboard({ summary }: { summary: Extract<DashboardSummary, { scop
             <motion.div variants={item} className="space-y-2">
                 <div className="flex items-center gap-1.5">
                     <Building2 className="size-4 text-violet-500" />
-                    <Text variant="caption">Attendance by department — share of overall</Text>
-                </div>
-                <Leaderboard entries={departmentEntries} emptyLabel="No attendance tracked yet." />
-            </motion.div>
-
-            <motion.div variants={item} className="space-y-2">
-                <div className="flex items-center gap-1.5">
-                    <Flame className="size-4 text-orange-500" />
-                    <Text variant="caption">Present / Late / Absent — by department</Text>
+                    <Text variant="caption">Attendance by department</Text>
                 </div>
                 <DepartmentComposition
                     rows={summary.attendanceByDepartment}
@@ -642,22 +307,25 @@ function AdminDashboard({ summary }: { summary: Extract<DashboardSummary, { scop
                     <Wallet className="size-4 text-amber-500" />
                     <Text variant="caption">Penalties across all events — share of overall</Text>
                 </div>
-                <PenaltyStrip total={summary.penaltyTotal} />
-                <Leaderboard entries={penaltyEntries} emptyLabel="No penalties recorded yet." />
+                <PenaltyStrip total={summary.penaltyTotal} canViewPenalties={PENALTY_VIEW_ROLES.includes(role)} />
+                <Leaderboard entries={penaltyEntries} emptyLabel="No penalties recorded yet." barClassName="bg-amber-500 dark:bg-amber-400" />
             </motion.div>
         </motion.div>
     );
 }
 
 /* ---------------------------------------------------------------------- */
-/* Department composition — Present/Late/Absent split *within* each      */
-/* department (not that department's share of the grand total, which is  */
-/* what the Leaderboard above already shows). One bold segmented bar per */
-/* department, dark surface + a confident amber/orange fill, echoing the */
-/* energetic sports-app reference the client pointed to — but kept on    */
-/* this app's existing status palette (emerald/amber/red) rather than a  */
-/* new color scheme, since that mapping already means Present/Late/      */
-/* Absent everywhere else in the app (badges, the ring above, etc.).     */
+/* Department composition — combines each department's share of overall  */
+/* tracked attendance (once shown separately as its own leaderboard)     */
+/* with its own Present/Late/Absent split, so one card now answers both  */
+/* "how much of overall attendance is this department" and "how is that  */
+/* department doing" instead of splitting them across two sections. One  */
+/* bold segmented bar per department, dark surface + a confident         */
+/* amber/orange fill, echoing the energetic sports-app reference the     */
+/* client pointed to — but kept on this app's existing status palette    */
+/* (emerald/amber/red) rather than a new color scheme, since that        */
+/* mapping already means Present/Late/Absent everywhere else in the app  */
+/* (badges, the ring above, etc.).                                       */
 /* ---------------------------------------------------------------------- */
 
 function DepartmentComposition({
@@ -681,29 +349,48 @@ function DepartmentComposition({
 
     return (
         <motion.div variants={container} initial="hidden" animate="show" className="grid gap-3 sm:grid-cols-2">
-            {rows.map((dept) => {
+            {rows.map((dept, index) => {
                 const tracked = dept.present + dept.late + dept.absent;
                 const presentPct = tracked > 0 ? (dept.present / tracked) * 100 : 0;
                 const latePct = tracked > 0 ? (dept.late / tracked) * 100 : 0;
                 const absentPct = tracked > 0 ? 100 - presentPct - latePct : 0;
                 const penalty = penaltyByDept.get(dept.departmentId);
+                const avatarTone = DEPARTMENT_TONES[index % DEPARTMENT_TONES.length];
 
                 return (
-                    <motion.div key={dept.departmentId} variants={item}>
-                        <Card>
+                    <motion.div key={dept.departmentId} variants={item} whileHover={{ y: -2 }}>
+                        <Card className="h-full transition-shadow hover:shadow-md">
                             <CardContent className="pt-6">
                                 <div className="flex items-center justify-between">
-                                    <span className="text-small font-medium text-foreground">{dept.departmentCode}</span>
-                                    <Text variant="caption">{tracked} tracked</Text>
+                                    <div className="flex items-center gap-2.5">
+                                        <span
+                                            className={cn(
+                                                'flex size-9 shrink-0 items-center justify-center rounded-xl text-xs font-bold tabular-nums',
+                                                avatarTone,
+                                            )}
+                                        >
+                                            {dept.departmentCode.slice(0, 2)}
+                                        </span>
+                                        <div>
+                                            <span className="block text-small font-medium text-foreground">{dept.departmentCode}</span>
+                                            <Text variant="caption">{dept.departmentName}</Text>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <Text variant="caption">{tracked} tracked</Text>
+                                        <span className="block text-caption font-medium text-violet-600 dark:text-violet-400">
+                                            {Math.round(dept.percentageOfOverall)}% of overall
+                                        </span>
+                                    </div>
                                 </div>
 
-                                <div className="mt-3 flex h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                                <div className="mt-4 flex h-2.5 w-full items-center gap-0.5 overflow-hidden rounded-full bg-muted">
                                     {presentPct > 0 && (
                                         <motion.div
                                             initial={{ width: 0 }}
                                             animate={{ width: `${presentPct}%` }}
                                             transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-                                            className="bg-emerald-500"
+                                            className="h-full rounded-full bg-emerald-500"
                                         />
                                     )}
                                     {latePct > 0 && (
@@ -711,7 +398,7 @@ function DepartmentComposition({
                                             initial={{ width: 0 }}
                                             animate={{ width: `${latePct}%` }}
                                             transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: 0.05 }}
-                                            className="bg-amber-500"
+                                            className="h-full rounded-full bg-amber-500"
                                         />
                                     )}
                                     {absentPct > 0 && (
@@ -719,7 +406,7 @@ function DepartmentComposition({
                                             initial={{ width: 0 }}
                                             animate={{ width: `${absentPct}%` }}
                                             transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
-                                            className="bg-red-500"
+                                            className="h-full rounded-full bg-red-500"
                                         />
                                     )}
                                 </div>
@@ -737,7 +424,7 @@ function DepartmentComposition({
                                 </div>
 
                                 {penalty && penalty.penaltyTotal > 0 && (
-                                    <div className="mt-3 flex items-center justify-between border-t pt-3">
+                                    <div className="mt-3 flex items-center justify-between rounded-lg bg-red-500/5 px-2.5 py-2 dark:bg-red-500/10">
                                         <span className="flex items-center gap-1.5 text-caption text-muted-foreground">
                                             <Wallet className="size-3.5" /> Penalties
                                         </span>
@@ -757,6 +444,16 @@ function DepartmentComposition({
         </motion.div>
     );
 }
+
+/** Deterministic, cycling avatar tints for department badges — purely a visual anchor so each card is scannable at a glance, not a meaningful color code. */
+const DEPARTMENT_TONES = [
+    'bg-violet-500/15 text-violet-700 dark:text-violet-300',
+    'bg-sky-500/15 text-sky-700 dark:text-sky-300',
+    'bg-orange-500/15 text-orange-700 dark:text-orange-300',
+    'bg-teal-500/15 text-teal-700 dark:text-teal-300',
+    'bg-pink-500/15 text-pink-700 dark:text-pink-300',
+    'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300',
+];
 
 /* ---------------------------------------------------------------------- */
 /* Shared pieces                                                          */
@@ -846,45 +543,104 @@ function LiveHero({ session, counts }: { session: DashboardActiveSession; counts
     );
 }
 
-function QuietHero({ totalStudents, eventsCount, scope }: { totalStudents: number; eventsCount: number; scope: 'global' | 'department' }) {
+function QuietHero({
+    totalStudents,
+    eventsCount,
+    departmentsCount,
+}: {
+    totalStudents: number;
+    eventsCount: number;
+    departmentsCount: number;
+}) {
     return (
         <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-            className="rounded-3xl border bg-card p-6"
+            className="rounded-3xl border bg-card p-4 sm:p-6"
         >
             <div className="flex items-center gap-2 text-muted-foreground">
-                <Moon className="size-4" />
+                <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted">
+                    <Moon className="size-3.5" />
+                </span>
                 <Text variant="small">No session is currently open.</Text>
             </div>
-            <div className="mt-4 grid grid-cols-2 gap-3">
-                <MiniStat label={scope === 'department' ? 'Students in department' : 'Total students'} value={totalStudents} Icon={Users} />
-                <MiniStat label="Events" value={eventsCount} Icon={CalendarDays} />
+            {/* Penalty total lives in one place only — the dedicated "Penalties across
+                all events" section below — rather than repeated here, so the figure
+                the person sees at the top of the page always matches the figure they
+                see when they scroll down to check it. */}
+            <div className="mt-4 grid grid-cols-3 items-stretch gap-2 sm:gap-3">
+                <MiniStat label="Students" value={totalStudents} Icon={Users} tone="violet" />
+                <MiniStat label="Events" value={eventsCount} Icon={CalendarDays} tone="sky" />
+                <MiniStat label="Depts." value={departmentsCount} Icon={Building2} tone="amber" />
             </div>
         </motion.div>
     );
 }
 
-function MiniStat({ label, value, Icon }: { label: string; value: number; Icon: LucideIcon }) {
+const MINI_STAT_TONES = {
+    violet: 'bg-violet-500/15 text-violet-600 dark:text-violet-400',
+    sky: 'bg-sky-500/15 text-sky-600 dark:text-sky-400',
+    amber: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
+} as const;
+
+function MiniStat({
+    label,
+    value,
+    Icon,
+    tone,
+    format,
+}: {
+    label: string;
+    value: number;
+    Icon: LucideIcon;
+    tone: keyof typeof MINI_STAT_TONES;
+    format?: (n: number) => string;
+}) {
     return (
-        <motion.div whileHover={{ y: -2 }} className="rounded-2xl border p-3">
-            <div className="mb-1.5 flex size-7 items-center justify-center rounded-full bg-muted">
-                <Icon className="size-3.5 text-muted-foreground" />
+        <motion.div whileHover={{ y: -2 }} className="flex h-full min-w-0 flex-col rounded-2xl border p-2.5 sm:p-3">
+            <div
+                className={cn(
+                    'mb-1.5 flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-full sm:size-7',
+                    MINI_STAT_TONES[tone],
+                )}
+            >
+                <Icon className="size-3 shrink-0 sm:size-3.5" />
             </div>
-            <Text variant="caption">{label}</Text>
-            <span className="block text-h2 font-semibold tabular-nums text-foreground">
-                <AnimatedCounter value={value} />
+            <Text variant="caption" className="block truncate leading-tight">
+                {label}
+            </Text>
+            <span className="mt-auto block truncate pt-1 text-lg font-semibold tabular-nums text-foreground sm:text-h2">
+                <AnimatedCounter value={value} format={format} />
             </span>
         </motion.div>
     );
 }
 
-function StatChip({ label, value, Icon, iconClassName }: { label: string; value: number; Icon: LucideIcon; iconClassName: string }) {
+const STAT_CHIP_TONES = {
+    emerald: {
+        wrap: 'border-emerald-500/15 bg-emerald-500/5 dark:border-emerald-500/20 dark:bg-emerald-500/10',
+        icon: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
+    },
+    amber: {
+        wrap: 'border-amber-500/15 bg-amber-500/5 dark:border-amber-500/20 dark:bg-amber-500/10',
+        icon: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
+    },
+    red: {
+        wrap: 'border-red-500/15 bg-red-500/5 dark:border-red-500/20 dark:bg-red-500/10',
+        icon: 'bg-red-500/15 text-red-600 dark:text-red-400',
+    },
+} as const;
+
+function StatChip({ label, value, Icon, tone }: { label: string; value: number; Icon: LucideIcon; tone: keyof typeof STAT_CHIP_TONES }) {
+    const { wrap, icon } = STAT_CHIP_TONES[tone];
+
     return (
-        <div className="flex items-center justify-between gap-3 rounded-2xl border px-4 py-3">
-            <div className="flex items-center gap-2">
-                <Icon className={cn('size-4', iconClassName)} />
+        <div className={cn('flex items-center justify-between gap-3 rounded-2xl border px-4 py-3', wrap)}>
+            <div className="flex items-center gap-2.5">
+                <span className={cn('flex size-8 shrink-0 items-center justify-center rounded-full', icon)}>
+                    <Icon className="size-4" />
+                </span>
                 <Text variant="small" className="font-medium text-foreground">
                     {label}
                 </Text>
@@ -914,26 +670,46 @@ function StatPill({ label, value, Icon, iconClassName }: { label: ReactNode; val
     );
 }
 
-function PenaltyStrip({ total }: { total: number }) {
-    return (
-        <Card>
-            <CardHeader className="flex-row items-center justify-between gap-2 pb-2">
-                <div className="flex items-center gap-2">
-                    <Wallet className="size-4 text-muted-foreground" />
-                    <CardDescription>Total penalty balance</CardDescription>
-                </div>
-            </CardHeader>
-            <CardContent>
+function PenaltyStrip({ total, canViewPenalties }: { total: number; canViewPenalties: boolean }) {
+    const isOwed = total > 0;
+
+    const content = (
+        <Card className={cn(canViewPenalties && 'transition-shadow hover:shadow-md')}>
+            <CardContent className="flex items-center gap-4 pt-6">
                 <span
                     className={cn(
-                        'text-h1 font-semibold tabular-nums',
-                        total > 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400',
+                        'flex size-12 shrink-0 items-center justify-center rounded-2xl',
+                        isOwed ? 'bg-red-500/10 text-red-600 dark:text-red-400' : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
                     )}
                 >
-                    <AnimatedCounter value={total} format={formatCurrency} />
+                    <Wallet className="size-6" />
                 </span>
+                <div className="min-w-0">
+                    <CardDescription>Total penalty balance</CardDescription>
+                    <span
+                        className={cn(
+                            'block text-h1 leading-tight font-semibold tabular-nums',
+                            isOwed ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400',
+                        )}
+                    >
+                        <AnimatedCounter value={total} format={formatCurrency} />
+                    </span>
+                </div>
             </CardContent>
         </Card>
+    );
+
+    // Reversed penalties are excluded from this total (see
+    // BuildDashboardSummary::penaltyTotal), so the click-through carries
+    // status=active — landing on the unfiltered "all" ledger would show
+    // a bigger number than the one just tapped, and the two would look
+    // out of sync.
+    return canViewPenalties ? (
+        <Link to="/penalties?status=active" className="block">
+            {content}
+        </Link>
+    ) : (
+        content
     );
 }
 

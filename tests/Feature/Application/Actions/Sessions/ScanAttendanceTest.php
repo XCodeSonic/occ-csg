@@ -8,6 +8,7 @@ use App\Domain\Enums\SessionStatus;
 use App\Domain\Enums\WindowType;
 use App\Domain\Exceptions\SessionNotAcceptingScansException;
 use App\Domain\Exceptions\StaleQrCodeException;
+use App\Domain\Exceptions\StudentDepartmentNotIncludedException;
 use App\Domain\Exceptions\StudentExcludedException;
 use App\Domain\ValueObjects\QrPayload;
 use App\Models\AttendanceRecord;
@@ -28,7 +29,7 @@ uses(RefreshDatabase::class);
 beforeEach(fn () => Carbon::setTestNow(Carbon::parse('2026-11-10 07:05:00', 'Asia/Manila')));
 afterEach(fn () => Carbon::setTestNow());
 
-function makeDay(): EventDay
+function makeDay(?EventModel $event = null): EventDay
 {
     // firstOrCreate throughout: several tests build a sibling session on
     // "the same day", which means reusing the same department/event/day
@@ -44,7 +45,7 @@ function makeDay(): EventDay
         ],
     );
 
-    $event = EventModel::firstOrCreate(
+    $event ??= EventModel::firstOrCreate(
         ['name' => 'Test Event'],
         ['created_by' => $creator->id],
     );
@@ -55,10 +56,10 @@ function makeDay(): EventDay
     );
 }
 
-function makeSession(array $overrides = []): AttendanceSession
+function makeSession(array $overrides = [], ?EventModel $event = null): AttendanceSession
 {
     return AttendanceSession::create(array_merge([
-        'event_day_id' => makeDay()->id,
+        'event_day_id' => makeDay($event)->id,
         'window_type' => WindowType::Morning,
         'check_type' => CheckType::TimeIn,
         'start_time' => '07:00:00',
@@ -68,9 +69,11 @@ function makeSession(array $overrides = []): AttendanceSession
     ], $overrides));
 }
 
-function makeStudent(int $qrVersion = 1): Student
+function makeStudent(int $qrVersion = 1, ?string $departmentCode = null): Student
 {
-    $department = Department::create(['name' => 'CS', 'code' => 'CS']);
+    $department = $departmentCode
+        ? Department::firstOrCreate(['code' => $departmentCode], ['name' => $departmentCode])
+        : Department::create(['name' => 'CS', 'code' => 'CS']);
 
     return Student::create([
         'student_number' => '2023105413',
@@ -197,6 +200,99 @@ it('still allows a scan from a student excluded from a different window type', f
         'window_type' => WindowType::Evening,
         'created_by' => $student->id,
     ]);
+
+    $record = (new ScanAttendance)($session, $token);
+
+    expect($record->status)->toBe(AttendanceStatus::Present);
+});
+
+it('resolves gracefully instead of throwing when two officers scan the same badge concurrently', function () {
+    // Simulates the race two simultaneous scanners can hit: both pass the
+    // $existing check as null before either INSERT commits. A model event
+    // listener inserts the "other officer's" row right before this action's
+    // own create() reaches the database, forcing the unique constraint on
+    // (session_id, student_id) to reject it exactly as it would under real
+    // concurrency.
+    $session = makeSession();
+    $student = makeStudent();
+    $token = QrPayload::forStudent($student->student_number, $student->qr_version)->encrypt();
+
+    AttendanceRecord::creating(function (AttendanceRecord $record) use ($session, $student) {
+        if (AttendanceRecord::where('session_id', $session->id)->where('student_id', $student->id)->exists()) {
+            return; // the "other officer's" row already landed — let this one hit the unique constraint
+        }
+
+        AttendanceRecord::withoutEvents(fn () => AttendanceRecord::create([
+            'session_id' => $session->id,
+            'student_id' => $student->id,
+            'scanned_at' => now(),
+            'status' => AttendanceStatus::Present,
+            'scanned_by' => null,
+        ]));
+    });
+
+    $record = (new ScanAttendance)($session, $token);
+
+    expect($record)->not->toBeNull()
+        ->and(AttendanceRecord::where('session_id', $session->id)->where('student_id', $student->id)->count())->toBe(1);
+
+    AttendanceRecord::flushEventListeners();
+});
+
+it('rejects a scan from a student whose department is not included in the event scope', function () {
+    $creator = Student::firstOrCreate(
+        ['student_number' => '2020000001'],
+        [
+            'last_name' => 'Admin', 'first_name' => 'CSG',
+            'department_id' => Department::firstOrCreate(['code' => 'CCS'], ['name' => 'CCS'])->id,
+            'username' => 'csgadmin', 'password' => 'password',
+        ],
+    );
+    $bsit = Department::firstOrCreate(['code' => 'BSIT'], ['name' => 'BSIT']);
+    $bsba = Department::firstOrCreate(['code' => 'BSBA'], ['name' => 'BSBA']);
+
+    $scopedEvent = EventModel::create(['name' => 'BSIT-only Event', 'created_by' => $creator->id]);
+    $scopedEvent->departments()->sync([$bsit->id]);
+
+    $session = makeSession([], $scopedEvent);
+    $student = makeStudent(departmentCode: $bsba->code); // not part of the event's scope
+    $token = QrPayload::forStudent($student->student_number, $student->qr_version)->encrypt();
+
+    (new ScanAttendance)($session, $token);
+})->throws(StudentDepartmentNotIncludedException::class);
+
+it('allows a scan from a student whose department is included in the event scope', function () {
+    $creator = Student::firstOrCreate(
+        ['student_number' => '2020000001'],
+        [
+            'last_name' => 'Admin', 'first_name' => 'CSG',
+            'department_id' => Department::firstOrCreate(['code' => 'CCS'], ['name' => 'CCS'])->id,
+            'username' => 'csgadmin', 'password' => 'password',
+        ],
+    );
+    $bsit = Department::firstOrCreate(['code' => 'BSIT'], ['name' => 'BSIT']);
+    $bed = Department::firstOrCreate(['code' => 'BED'], ['name' => 'BEd']);
+
+    $scopedEvent = EventModel::create(['name' => 'BSIT + BEd Event', 'created_by' => $creator->id]);
+    $scopedEvent->departments()->sync([$bsit->id, $bed->id]);
+
+    $session = makeSession([], $scopedEvent);
+    $student = makeStudent(departmentCode: $bed->code); // part of the event's scope
+    $token = QrPayload::forStudent($student->student_number, $student->qr_version)->encrypt();
+
+    $record = (new ScanAttendance)($session, $token);
+
+    expect($record->student_id)->toBe($student->id)
+        ->and($record->status)->toBe(AttendanceStatus::Present);
+});
+
+it('allows a scan from any department when the event has no department restriction', function () {
+    // An event created before department scoping existed (or one where
+    // every department was checked at creation) has an empty
+    // event_departments pivot — unrestricted, per EventModel::includedDepartmentIds.
+    $session = makeSession(); // "Test Event" — no departments synced
+    $student = makeStudent(departmentCode: 'BSBA');
+    $token = QrPayload::forStudent($student->student_number, $student->qr_version)->encrypt();
 
     $record = (new ScanAttendance)($session, $token);
 

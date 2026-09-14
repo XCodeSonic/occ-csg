@@ -15,7 +15,7 @@ class EventController extends Controller
         Gate::authorize('viewAny', EventModel::class);
 
         return response()->json(
-            EventModel::with(['days.sessions', 'semester.academicYear'])->orderByDesc('id')->get()
+            EventModel::with(['days.sessions', 'semester.academicYear', 'departments'])->orderByDesc('id')->get()
         );
     }
 

@@ -63,6 +63,7 @@ it('rejects event creation from a non-admin role', function () {
 it('lets a csg admin create an event, auto-attached to the active semester', function () {
     $admin = eventTestStaff('csg_admin', '2020000001');
     $semester = eventTestSemester($admin);
+    $department = eventTestDept();
 
     // No semester_id in the request — the person creating the event
     // never picks one, it's resolved from whatever's active.
@@ -70,6 +71,7 @@ it('lets a csg admin create an event, auto-attached to the active semester', fun
         ->postJson('/api/events', [
             'name' => 'Intramurals 2026',
             'description' => 'Sports fest',
+            'department_ids' => [$department->id],
         ])
         ->assertStatus(201)
         ->assertJsonPath('name', 'Intramurals 2026')
@@ -78,10 +80,63 @@ it('lets a csg admin create an event, auto-attached to the active semester', fun
 
 it('rejects event creation when there is no active semester', function () {
     $admin = eventTestStaff('csg_admin', '2020000001');
+    $department = eventTestDept();
+
+    $this->actingAs($admin, 'sanctum')
+        ->postJson('/api/events', ['name' => 'Intramurals 2026', 'department_ids' => [$department->id]])
+        ->assertStatus(422);
+});
+
+it('rejects event creation with no department_ids at all', function () {
+    $admin = eventTestStaff('csg_admin', '2020000001');
+    eventTestSemester($admin);
 
     $this->actingAs($admin, 'sanctum')
         ->postJson('/api/events', ['name' => 'Intramurals 2026'])
-        ->assertStatus(422);
+        ->assertStatus(422)
+        ->assertJsonValidationErrors('department_ids');
+});
+
+it('rejects event creation with an empty department_ids array', function () {
+    $admin = eventTestStaff('csg_admin', '2020000001');
+    eventTestSemester($admin);
+
+    $this->actingAs($admin, 'sanctum')
+        ->postJson('/api/events', ['name' => 'Intramurals 2026', 'department_ids' => []])
+        ->assertStatus(422)
+        ->assertJsonValidationErrors('department_ids');
+});
+
+it('rejects event creation with a department_ids entry that does not exist', function () {
+    $admin = eventTestStaff('csg_admin', '2020000001');
+    eventTestSemester($admin);
+
+    $this->actingAs($admin, 'sanctum')
+        ->postJson('/api/events', ['name' => 'Intramurals 2026', 'department_ids' => [999999]])
+        ->assertStatus(422)
+        ->assertJsonValidationErrors('department_ids.0');
+});
+
+it('creates an event scoped to only the given departments', function () {
+    $admin = eventTestStaff('csg_admin', '2020000001');
+    eventTestSemester($admin);
+    $bsit = eventTestDept('BSIT');
+    $bed = eventTestDept('BED');
+    eventTestDept('BSBA'); // not included — should be excluded from scope
+
+    $response = $this->actingAs($admin, 'sanctum')
+        ->postJson('/api/events', [
+            'name' => 'BSIT + BEd only Intramurals',
+            'department_ids' => [$bsit->id, $bed->id],
+        ])
+        ->assertStatus(201)
+        ->json();
+
+    $event = EventModel::with('departments')->find($response['id']);
+
+    expect($event->includesDepartment($bsit->id))->toBeTrue()
+        ->and($event->includesDepartment($bed->id))->toBeTrue()
+        ->and($event->departments)->toHaveCount(2);
 });
 
 it('creates a day and then a session under it, nested via the route', function () {

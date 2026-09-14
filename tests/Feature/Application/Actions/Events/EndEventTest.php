@@ -79,11 +79,14 @@ it('ends the event without touching a session that was never started', function 
 
 it('force-ends every ongoing session when the event ends', function () {
     $event = endEventWithDay();
-    $morning = endEventSession($event, ['window_type' => WindowType::Morning]);
-    $afternoon = endEventSession($event, ['window_type' => WindowType::Afternoon]);
-
-    (new StartSession)($morning);
-    (new StartSession)($afternoon);
+    // StartSession enforces "only one ongoing session per event" as a
+    // real invariant (see its own docblock), so two sessions can never
+    // both reach Ongoing through that action at once. EndEvent's cascade
+    // still needs to be robust against multiple ongoing sessions under
+    // one event regardless of how that state was reached, so this test
+    // sets it up directly rather than through StartSession.
+    $morning = endEventSession($event, ['window_type' => WindowType::Morning, 'status' => SessionStatus::Ongoing]);
+    $afternoon = endEventSession($event, ['window_type' => WindowType::Afternoon, 'status' => SessionStatus::Ongoing]);
 
     $result = (new EndEvent(new EndSession))($event);
 

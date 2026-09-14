@@ -75,3 +75,112 @@ it('validates required fields on department creation', function () {
         ->assertStatus(422)
         ->assertJsonValidationErrors(['name', 'code']);
 });
+
+it('rejects department update from a non-admin role', function () {
+    $officer = departmentTestStaff('officer', '2020200001');
+    $dept = departmentTestDept('BSIT');
+
+    $this->actingAs($officer, 'sanctum')
+        ->patchJson("/api/departments/{$dept->id}", ['name' => 'Renamed'])
+        ->assertStatus(403);
+});
+
+it('lets a csg admin update a department name and code', function () {
+    $admin = departmentTestStaff('csg_admin', '2020000001');
+    $dept = departmentTestDept('BSIT');
+
+    $this->actingAs($admin, 'sanctum')
+        ->patchJson("/api/departments/{$dept->id}", ['name' => 'BS Information Technology', 'code' => 'it'])
+        ->assertStatus(200)
+        ->assertJsonPath('name', 'BS Information Technology')
+        ->assertJsonPath('code', 'IT');
+});
+
+it('allows a partial update with only one field', function () {
+    $admin = departmentTestStaff('csg_admin', '2020000001');
+    $dept = departmentTestDept('BSIT');
+
+    $this->actingAs($admin, 'sanctum')
+        ->patchJson("/api/departments/{$dept->id}", ['name' => 'Renamed Only'])
+        ->assertStatus(200)
+        ->assertJsonPath('name', 'Renamed Only')
+        ->assertJsonPath('code', 'BSIT');
+});
+
+it('rejects a department update that collides with another department\'s code', function () {
+    $admin = departmentTestStaff('csg_admin', '2020000001');
+    departmentTestDept('BSIT');
+    $bsba = departmentTestDept('BSBA');
+
+    $this->actingAs($admin, 'sanctum')
+        ->patchJson("/api/departments/{$bsba->id}", ['code' => 'bsit'])
+        ->assertStatus(422)
+        ->assertJsonValidationErrors('code');
+});
+
+it('allows a department update that keeps its own existing code', function () {
+    $admin = departmentTestStaff('csg_admin', '2020000001');
+    $dept = departmentTestDept('BSIT');
+
+    $this->actingAs($admin, 'sanctum')
+        ->patchJson("/api/departments/{$dept->id}", ['code' => 'bsit', 'name' => 'BSIT Updated'])
+        ->assertStatus(200)
+        ->assertJsonPath('code', 'BSIT');
+});
+
+it('rejects department deletion from a non-admin role', function () {
+    $officer = departmentTestStaff('officer', '2020200001');
+    $dept = departmentTestDept('BSIT');
+
+    $this->actingAs($officer, 'sanctum')
+        ->deleteJson("/api/departments/{$dept->id}")
+        ->assertStatus(403);
+});
+
+it('lets a csg admin delete a department with no students', function () {
+    $admin = departmentTestStaff('csg_admin', '2020000001');
+    $empty = departmentTestDept('EMPTY');
+
+    $this->actingAs($admin, 'sanctum')
+        ->deleteJson("/api/departments/{$empty->id}")
+        ->assertStatus(204);
+
+    expect(Department::find($empty->id))->toBeNull();
+});
+
+it('refuses to delete a department that still has a student', function () {
+    $admin = departmentTestStaff('csg_admin', '2020000001');
+    $bsit = departmentTestDept('BSIT');
+    Student::create([
+        'student_number' => '2020300001',
+        'last_name' => 'Test', 'first_name' => 'Student',
+        'department_id' => $bsit->id,
+        'username' => 'dctrl2020300001',
+        'password' => 'password',
+        'role' => 'student',
+    ]);
+
+    $this->actingAs($admin, 'sanctum')
+        ->deleteJson("/api/departments/{$bsit->id}")
+        ->assertStatus(409);
+
+    expect(Department::find($bsit->id))->not->toBeNull();
+});
+
+it('refuses to delete a department an sc admin is scoped to', function () {
+    $admin = departmentTestStaff('csg_admin', '2020000001');
+    $bsit = departmentTestDept('BSIT');
+    Student::create([
+        'student_number' => '2020000099',
+        'last_name' => 'Admin', 'first_name' => 'Sc',
+        'department_id' => departmentTestDept('CCS')->id,
+        'sc_admin_department_id' => $bsit->id,
+        'username' => 'dctrl2020000099',
+        'password' => 'password',
+        'role' => 'sc_admin',
+    ]);
+
+    $this->actingAs($admin, 'sanctum')
+        ->deleteJson("/api/departments/{$bsit->id}")
+        ->assertStatus(409);
+});

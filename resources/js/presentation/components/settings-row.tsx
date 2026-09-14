@@ -9,13 +9,16 @@ interface SettingsRowProps extends PropsWithChildren {
     icon?: ReactNode;
     onClick?: () => void;
     destructive?: boolean;
+    /** Optional right-aligned hint shown before the chevron, e.g. a balance or a count. */
+    trailing?: ReactNode;
 }
 
-export function SettingsRow({ to, icon, onClick, destructive, children }: SettingsRowProps) {
+export function SettingsRow({ to, icon, onClick, destructive, trailing, children }: SettingsRowProps) {
     const content = (
         <>
             {icon ? <span className="text-muted-foreground">{icon}</span> : null}
             <span className={cn('flex-1 text-body', destructive && 'text-destructive')}>{children}</span>
+            {trailing ? <span className="text-small text-muted-foreground">{trailing}</span> : null}
             {to ? <ChevronRight className="size-4 text-muted-foreground" /> : null}
         </>
     );

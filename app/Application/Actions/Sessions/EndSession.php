@@ -86,7 +86,16 @@ final class EndSession
         // accounts are ever eligible. System Admin, CSG Admin, SC Admin,
         // and Officer never appear here — they're staff running or
         // staffing the event, not people being checked for attendance.
+        //
+        // Also scoped to the event's included departments (see
+        // EventModel::includedDepartmentIds) — a student whose department
+        // was never part of this event must never be swept into Absent
+        // (and therefore never penalized) here just because they have no
+        // record for a session they were never supposed to attend.
+        $includedDepartmentIds = $session->eventDay->event->includedDepartmentIds();
+
         $missingStudentIds = Student::where('role', Role::Student)
+            ->whereIn('department_id', $includedDepartmentIds)
             ->whereNotIn('id', $studentIdsWithRecord)
             ->whereNotIn('id', $excludedStudentIds)
             ->pluck('id');

@@ -2,16 +2,17 @@
 
 namespace App\Http\Requests\Sessions;
 
+use App\Models\AttendanceSession;
 use Illuminate\Foundation\Http\FormRequest;
 
 class ScanAttendanceRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        // Any authenticated staff account may scan. If specific roles
-        // (e.g. only Officer/ScAdmin/CsgAdmin, not Student) turn out to be
-        // spec'd as scan-eligible, tighten this to a Gate/Policy check.
-        return true;
+        // Officer/ScAdmin/CsgAdmin/SystemAdmin may scan; a plain Student
+        // may not. See AttendanceSessionPolicy::scan for the reasoning —
+        // this used to be a blanket `true` for any authenticated account.
+        return $this->user()?->can('scan', AttendanceSession::class) ?? false;
     }
 
     public function rules(): array

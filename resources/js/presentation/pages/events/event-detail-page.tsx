@@ -1,5 +1,6 @@
 import { type FormEvent, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
+import { FileBarChart } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Badge } from '@/components/ui/badge';
@@ -13,12 +14,16 @@ import { useEvents } from '@/application/events/use-events';
 import { useCreateEventDay } from '@/application/events/use-create-event-day';
 import { useEndEvent } from '@/application/events/use-end-event';
 import { useMyEventAttendance } from '@/application/events/use-my-event-attendance';
-import { EVENT_STATUS_BADGE_CLASS, EVENT_STATUS_LABEL, EventStatus, Role } from '@/domain/enums';
+import { EVENT_STATUS_BADGE_CLASS, EVENT_STATUS_LABEL, EventStatus, Role, SessionStatus } from '@/domain/enums';
 import { Heading, Text } from '@/presentation/components/typography';
 import { EventDaySection } from '@/presentation/pages/events/event-day-section';
 import { StudentEventDaySection } from '@/presentation/pages/events/student-event-day-section';
 
 const MANAGE_ROLES: Role[] = [Role.SystemAdmin, Role.CsgAdmin];
+// Mirrors EventModelPolicy::viewRosterReport — an SC Admin can pull
+// reports for their own department even though they can't manage days
+// and sessions (MANAGE_ROLES above).
+const REPORT_ROLES: Role[] = [Role.SystemAdmin, Role.CsgAdmin, Role.ScAdmin];
 
 interface DayFormValues {
     date: string;
@@ -29,6 +34,7 @@ const EMPTY_DAY_FORM: DayFormValues = { date: '', dayNumber: '' };
 
 export function EventDetailPage() {
     const { eventId } = useParams<{ eventId: string }>();
+    const navigate = useNavigate();
     const student = useAuthStore((state) => state.student);
     const { data: events, isLoading } = useEvents();
 
@@ -49,6 +55,15 @@ export function EventDetailPage() {
     const sortedDays = event ? [...event.days].sort((a, b) => a.dayNumber - b.dayNumber) : [];
     const nextDayNumber = sortedDays.length > 0 ? Math.max(...sortedDays.map((day) => day.dayNumber)) + 1 : 1;
     const isEventEnded = event?.status === EventStatus.Ended;
+    // Only one session per event may be ongoing at a time (spec: don't
+    // start Day 1 Afternoon while Day 1 Morning Time Out is still open) —
+    // computed across every day, not just the one being rendered, and
+    // passed down so EventDaySection can disable "Start" on every *other*
+    // session the moment one goes ongoing, instead of only finding out
+    // after the server rejects it.
+    const ongoingSessionId = sortedDays
+        .flatMap((day) => day.sessions)
+        .find((session) => session.status === SessionStatus.Ongoing)?.id ?? null;
 
     function handleEndEvent() {
         if (!event) return;
@@ -110,11 +125,24 @@ export function EventDetailPage() {
                     {event.description && <Text variant="small">{event.description}</Text>}
                 </div>
 
-                {canManage && !isEventEnded && (
-                    <Button size="sm" variant="destructive" onClick={handleEndEvent} disabled={endEvent.isPending}>
-                        {endEvent.isPending ? 'Ending…' : 'End event'}
-                    </Button>
-                )}
+                <div className="flex shrink-0 gap-2">
+                    {REPORT_ROLES.includes(student.role) && (
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            className="gap-1.5"
+                            onClick={() => navigate(`/events/${event.id}/report`)}
+                        >
+                            <FileBarChart className="size-4" />
+                            Reports
+                        </Button>
+                    )}
+                    {canManage && !isEventEnded && (
+                        <Button size="sm" variant="destructive" onClick={handleEndEvent} disabled={endEvent.isPending}>
+                            {endEvent.isPending ? 'Ending…' : 'End event'}
+                        </Button>
+                    )}
+                </div>
             </div>
 
             {isEventEnded && (
@@ -133,7 +161,12 @@ export function EventDetailPage() {
                         {sortedDays.length === 0 && <Text variant="small">No days scheduled yet.</Text>}
 
                         {sortedDays.map((day) => (
-                            <EventDaySection key={day.id} day={day} canManage={!isEventEnded} />
+                            <EventDaySection
+                                key={day.id}
+                                day={day}
+                                canManage={!isEventEnded}
+                                ongoingSessionId={ongoingSessionId}
+                            />
                         ))}
                     </>
                 ) : (

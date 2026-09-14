@@ -38,23 +38,41 @@ export function AppBottomNav({ student }: { student: Student }) {
 
     const items: NavItem[] = [{ to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard }];
 
-    // Events tab always shows for these roles — it shouldn't disappear
-    // just because the current event was ended. Admins/officers need it
-    // to review or manage past events too, not just while one is ongoing.
-    if (EVENTS_ROLES.includes(role) || role === Role.Student) {
-        items.push({ to: '/events', label: 'Events', icon: CalendarDays });
-    }
-
-    if (SCAN_ROLES.includes(role)) {
-        items.push({ to: '/scan', label: 'Scan', icon: ScanLine });
-    } else if (role === Role.Student) {
+    if (role === Role.Student) {
+        // Student's Settings page has nothing on it (see SettingsPage —
+        // every row there is gated to an admin/officer role), so it's
+        // dropped entirely rather than linking to an empty screen. With
+        // only three tabs, My QR in the middle slot is the one that
+        // should draw the eye, so it goes between Dashboard and Events
+        // instead of trailing after them.
         items.push({ to: '/profile', label: 'My QR', icon: QrCode });
+        items.push({ to: '/events', label: 'Events', icon: CalendarDays });
+    } else {
+        // Events tab always shows for these roles — it shouldn't disappear
+        // just because the current event was ended. Admins/officers need it
+        // to review or manage past events too, not just while one is ongoing.
+        if (EVENTS_ROLES.includes(role)) {
+            items.push({ to: '/events', label: 'Events', icon: CalendarDays });
+        }
+
+        if (SCAN_ROLES.includes(role)) {
+            items.push({ to: '/scan', label: 'Scan', icon: ScanLine });
+        }
+
+        items.push({ to: '/settings', label: 'Settings', icon: Settings });
     }
 
-    items.push({ to: '/settings', label: 'Settings', icon: Settings });
+    // Pages reached from a Settings row (see settings-page.tsx) but that
+    // live at their own top-level URL rather than under /settings —
+    // without this, none of the `items` prefixes match here and the
+    // collapsed pill falls through to its `items[0]` default (Dashboard),
+    // which is wrong for these.
+    const SETTINGS_SUBROUTES = ['/reports', '/students', '/academic-years', '/departments', '/penalties'];
+    const isSettingsSubroute = SETTINGS_SUBROUTES.some((route) => location.pathname.startsWith(route));
 
     const current =
         [...items].sort((a, b) => b.to.length - a.to.length).find((item) => location.pathname.startsWith(item.to)) ??
+        (isSettingsSubroute ? items.find((item) => item.to === '/settings') : undefined) ??
         items[0];
 
     // Whether there's actually somewhere to go back to. react-router's data
@@ -186,7 +204,7 @@ export function AppBottomNav({ student }: { student: Student }) {
                                     </motion.button>
                                 )} */}
                                 {items.map((item) => {
-                                    const isPrimary = item.to === '/profile';
+                                    const isHero = item.to === '/profile' || item.to === '/scan';
                                     return (
                                         <NavLink
                                             key={item.to}
@@ -198,7 +216,7 @@ export function AppBottomNav({ student }: { student: Student }) {
                                                 )
                                             }
                                         >
-                                            {isPrimary ? (
+                                            {isHero ? (
                                                 <span className="relative flex size-11 items-center justify-center">
                                                     <motion.span
                                                         aria-hidden
@@ -210,9 +228,9 @@ export function AppBottomNav({ student }: { student: Student }) {
                                                         <item.icon className="size-9 text-emerald-300" strokeWidth={2} />
                                                         <motion.span
                                                             aria-hidden
-                                                            className="absolute inset-y-0 w-1/3 -skew-x-12 bg-gradient-to-r from-transparent via-white/70 to-transparent mix-blend-overlay"
-                                                            animate={{ x: ['-120%', '220%'] }}
-                                                            transition={{ duration: 1.8, repeat: Infinity, repeatDelay: 2, ease: 'easeInOut' }}
+                                                            className="absolute inset-y-0 w-1/3 -skew-x-12 bg-linear-to-r from-transparent via-white/60 to-transparent mix-blend-overlay"
+                                                            animate={{ x: ['-130%', '230%'] }}
+                                                            transition={{ duration: 3.2, repeat: Infinity, repeatDelay: 2.4, ease: 'easeInOut' }}
                                                         />
                                                     </span>
                                                 </span>
@@ -225,7 +243,7 @@ export function AppBottomNav({ student }: { student: Student }) {
                                             <span
                                                 className={cn(
                                                     'text-center font-medium leading-tight whitespace-nowrap group-aria-[current=page]:font-semibold',
-                                                    isPrimary ? 'text-xs' : 'text-[11px]',
+                                                    isHero ? 'text-xs' : 'text-[11px]',
                                                 )}
                                             >
                                                 {item.label}

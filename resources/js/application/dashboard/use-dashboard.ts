@@ -5,15 +5,14 @@ import { httpDashboardRepository } from '@/infrastructure/dashboard/dashboard.re
 export const DASHBOARD_QUERY_KEY = ['dashboard'];
 
 /**
- * Polls rather than using Reverb/websockets on purpose — spec explicitly
- * rules out Reverb/queues since this is hosted on shared hosting. A 15s
- * interval is frequent enough for a live present/late/absent counter
- * during an ongoing session without hammering a shared-hosting box.
+ * No background polling — data is fetched once on mount and whenever the
+ * caller explicitly invalidates/refetches (e.g. the pull-to-refresh
+ * gesture in AppLayout). Previously auto-refetched every 15s; removed
+ * per request to stop the silent recurring network calls.
  */
 export function useDashboard() {
     return useQuery({
         queryKey: DASHBOARD_QUERY_KEY,
         queryFn: httpDashboardRepository.summary,
-        refetchInterval: 15_000,
     });
 }

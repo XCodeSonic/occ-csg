@@ -5,8 +5,10 @@ namespace App\Application\Actions\Sessions;
 use App\Domain\Enums\EventStatus;
 use App\Domain\Enums\SessionStatus;
 use App\Domain\Exceptions\EventAlreadyEndedException;
+use App\Domain\Exceptions\EventHasOngoingSessionException;
 use App\Domain\Exceptions\SessionNotScheduledException;
 use App\Models\AttendanceSession;
+use App\Models\EventModel;
 use Illuminate\Support\Facades\DB;
 
 final class StartSession
@@ -20,6 +22,12 @@ final class StartSession
      * scanning phone's clock can be minutes off in either direction. So a
      * CSG Admin taps Start on the session card, same as End.
      *
+     * Only one session per *event* may be ongoing at a time — e.g. Day 1
+     * Morning Time Out can't be started while Day 1 Morning Time In (or
+     * any other session under the same event) hasn't been ended yet. This
+     * is scoped to the event, not globally: two different events can each
+     * have their own session ongoing at the same time without conflict.
+     *
      * @throws SessionNotScheduledException if the session is already
      *         ongoing or has already ended.
      * @throws EventAlreadyEndedException if the session's parent event has
@@ -27,6 +35,8 @@ final class StartSession
      *         A session left `scheduled` when its event ended is never
      *         force-transitioned (nothing to finalize), but it also can't
      *         be started afterward: the event is over.
+     * @throws EventHasOngoingSessionException if another session under the
+     *         same event is already ongoing.
      */
     public function __invoke(AttendanceSession $session): AttendanceSession
     {
@@ -39,10 +49,32 @@ final class StartSession
                 throw new SessionNotScheduledException;
             }
 
-            if ($locked->eventDay->event->status === EventStatus::Ended) {
+            $eventId = $locked->eventDay->event_id;
+
+            // Also lock the event row: two officers tapping "Start" on two
+            // *different* scheduled sessions of the same event at the same
+            // instant could otherwise both pass the "any ongoing sibling?"
+            // check below before either UPDATE commits. Locking the event
+            // row serializes every concurrent start attempt for the same
+            // event through this one check, the same way locking the
+            // session row above serializes concurrent starts of the same
+            // session.
+            $event = EventModel::whereKey($eventId)->lockForUpdate()->first();
+
+            if ($event->status === EventStatus::Ended) {
                 throw new EventAlreadyEndedException(
                     'Cannot start this session because its event has already been ended.'
                 );
+            }
+
+            $anotherSessionOngoing = AttendanceSession::query()
+                ->whereHas('eventDay', fn ($query) => $query->where('event_id', $eventId))
+                ->where('id', '!=', $locked->id)
+                ->where('status', SessionStatus::Ongoing)
+                ->exists();
+
+            if ($anotherSessionOngoing) {
+                throw new EventHasOngoingSessionException;
             }
 
             $locked->update(['status' => SessionStatus::Ongoing]);
@@ -50,4 +82,4 @@ final class StartSession
             return $locked;
         });
     }
-}   
+}

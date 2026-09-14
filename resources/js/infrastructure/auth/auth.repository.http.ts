@@ -21,6 +21,7 @@ interface StudentDto {
     photo_path: string | null;
     photo_url: string | null;
     must_change_password: boolean;
+    has_accepted_terms: boolean;
 }
 
 function toStudent(dto: StudentDto): Student {
@@ -43,6 +44,7 @@ function toStudent(dto: StudentDto): Student {
         photoPath: dto.photo_path,
         photoUrl: dto.photo_url,
         mustChangePassword: dto.must_change_password,
+        hasAcceptedTerms: dto.has_accepted_terms,
     };
 }
 
@@ -54,6 +56,10 @@ export const httpAuthRepository: AuthRepository = {
 
     async changePassword(payload: ChangePasswordPayload): Promise<void> {
         await httpClient.post('/auth/change-password', payload);
+    },
+
+    async acceptTerms(): Promise<void> {
+        await httpClient.post('/auth/accept-terms');
     },
 
     async logout(): Promise<void> {

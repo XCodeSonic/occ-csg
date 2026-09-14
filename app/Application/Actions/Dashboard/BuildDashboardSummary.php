@@ -174,7 +174,13 @@ final class BuildDashboardSummary
      */
     private function sessionCounts(AttendanceSession $session, ?int $departmentId): array
     {
+        // Same department-scope rule as everywhere else (see
+        // EventModel::includedDepartmentIds) — a department this event
+        // never included shouldn't inflate the "pending" count here.
+        $includedDepartmentIds = $session->eventDay->event->includedDepartmentIds();
+
         $rosterIds = Student::where('role', Role::Student)
+            ->whereIn('department_id', $includedDepartmentIds)
             ->when($departmentId, fn ($q) => $q->where('department_id', $departmentId))
             ->pluck('id');
 

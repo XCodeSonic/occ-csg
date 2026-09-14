@@ -50,7 +50,13 @@ return [
     |
     */
 
-    'expiration' => null,
+    // Was null (tokens never expired). The bearer token is persisted in
+    // the browser's localStorage on the frontend (see auth.store.ts) —
+    // readable by any script on the page — so an unbounded lifetime meant
+    // a single XSS or a stolen device gave permanent API access. 12 hours
+    // comfortably covers a scanning shift/school day; a student simply
+    // logs in again after that, same as any session timeout.
+    'expiration' => (int) env('SANCTUM_TOKEN_EXPIRATION_MINUTES', 60 * 12),
 
     /*
     |--------------------------------------------------------------------------

@@ -21,6 +21,13 @@ class StoreEventRequest extends FormRequest
             // creating it — it's resolved server-side from whichever
             // semester is currently active (see CreateEvent), so there's
             // nothing to validate here.
+
+            // At least one department is required — an event open to no
+            // one at all isn't a valid event. The creation form defaults
+            // every checkbox to checked, so a CSG Admin submitting without
+            // touching anything sends every current department id here.
+            'department_ids' => ['required', 'array', 'min:1'],
+            'department_ids.*' => ['integer', 'distinct', 'exists:departments,id'],
         ];
     }
 }

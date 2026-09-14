@@ -4,6 +4,7 @@ use App\Http\Controllers\AcademicYears\AcademicYearController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Dashboard\DashboardController;
 use App\Http\Controllers\Departments\DepartmentController;
+use App\Http\Controllers\Departments\DepartmentLogoController;
 use App\Http\Controllers\Events\EndEventController;
 use App\Http\Controllers\Events\EventController;
 use App\Http\Controllers\Events\EventDayController;
@@ -11,6 +12,12 @@ use App\Http\Controllers\Events\EventMyAttendanceController;
 use App\Http\Controllers\Events\EventRosterReportController;
 use App\Http\Controllers\Events\MyAttendanceHistoryController;
 use App\Http\Controllers\Exclusions\ExclusionController;
+use App\Http\Controllers\Penalties\MyPenaltyHistoryController;
+use App\Http\Controllers\Penalties\PenaltyController;
+use App\Http\Controllers\Penalties\ReversePenaltyController;
+use App\Http\Controllers\Reports\MasterReportController;
+use App\Http\Controllers\Reports\MasterReportGenerationController;
+use App\Http\Controllers\Reports\RosterReportGenerationController;
 use App\Http\Controllers\Semesters\SemesterController;
 use App\Http\Controllers\Sessions\EndSessionController;
 use App\Http\Controllers\Sessions\ScanController;
@@ -26,14 +33,15 @@ use App\Http\Controllers\Students\StudentQrController;
 use App\Http\Controllers\Students\StudentRoleController;
 use Illuminate\Support\Facades\Route;
 
-Route::post('/auth/login', [AuthController::class, 'login']);
+Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:login');
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     // Reachable even while must_change_password is still true — otherwise a
     // student stuck on their default password could never clear the gate,
     // or log out, from the API alone.
     Route::post('/auth/logout', [AuthController::class, 'logout']);
     Route::post('/auth/change-password', [AuthController::class, 'changePassword']);
+    Route::post('/auth/accept-terms', [AuthController::class, 'acceptTerms']);
     Route::get('/auth/me', [AuthController::class, 'me']);
 
     Route::middleware('password.changed')->group(function () {
@@ -46,6 +54,16 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::post('/exclusions', [ExclusionController::class, 'store']);
         Route::delete('/exclusions/{exclusion}', [ExclusionController::class, 'destroy']);
+
+        // Spec §7.3: the admin worklist a CSG Admin reads before deciding
+        // what to reverse — every penalty across every student, filterable
+        // by department/event/reversed-state/search (see BuildPenaltyLedger).
+        Route::get('/penalties', [PenaltyController::class, 'index']);
+
+        // Spec §7.3: CSG Admin manually excuses a penalty after the fact.
+        // Reversal is one-way (see ReversePenalty/PenaltyAlreadyReversedException),
+        // so this is a single PATCH rather than a toggle.
+        Route::patch('/penalties/{penalty}/reverse', [ReversePenaltyController::class, 'update']);
 
         Route::get('/academic-years', [AcademicYearController::class, 'index']);
         Route::post('/academic-years', [AcademicYearController::class, 'store']);
@@ -61,6 +79,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::get('/departments', [DepartmentController::class, 'index']);
         Route::post('/departments', [DepartmentController::class, 'store']);
+        Route::patch('/departments/{department}', [DepartmentController::class, 'update']);
+        Route::post('/departments/{department}/logo', [DepartmentLogoController::class, 'update']);
+        Route::delete('/departments/{department}', [DepartmentController::class, 'destroy']);
 
         Route::get('/students', [StudentController::class, 'index']);
         Route::post('/students', [StudentController::class, 'store']);
@@ -79,5 +100,32 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/events/{event}/roster-report', [EventRosterReportController::class, 'show']);
         Route::get('/events/{event}/my-attendance', [EventMyAttendanceController::class, 'show']);
         Route::get('/my-attendance-history', [MyAttendanceHistoryController::class, 'show']);
+        Route::get('/my-penalty-history', [MyPenaltyHistoryController::class, 'show']);
+
+        // Async roster report generation: starts near-instantly (just a
+        // tracking row) and finishes after the response is sent — see
+        // StartRosterReportGeneration — with the frontend polling `show`
+        // for a real, DB-backed progress bar rather than waiting on a
+        // single long request that can hang or time out on a big export.
+        Route::post('/events/{event}/report-generations', [RosterReportGenerationController::class, 'store']);
+        Route::get('/report-generations/{reportGeneration}', [RosterReportGenerationController::class, 'show'])
+            ->name('report-generations.show');
+        Route::get('/report-generations/{reportGeneration}/download', [RosterReportGenerationController::class, 'download'])
+            ->name('report-generations.download');
+
+        // Settings → Reports landing screen: every event in the current
+        // active academic year + semester with its total
+        // Present/Absent/Late/Excluded (see BuildMasterReport) —
+        // distinct from the per-event roster report above.
+        Route::get('/reports/master', [MasterReportController::class, 'show']);
+
+        // The master report's own "generate" action, living on the
+        // Reports screen itself rather than inside one event: combines
+        // several event_ids into a single file (see
+        // StartMasterReportGeneration/BuildMasterRosterReport). Reuses
+        // the same report-generations.show/download routes above to
+        // poll and download — a ReportGeneration row behaves the same
+        // whether it came from here or from the per-event flow.
+        Route::post('/reports/master/report-generations', [MasterReportGenerationController::class, 'store']);
     });
 });

@@ -30,7 +30,14 @@ final class BuildSessionReport
     {
         $excludedStudentIds = Exclusion::excludedStudentIdsForSession($session);
 
+        // Never lists a student whose department isn't part of this
+        // event's scope (see EventModel::includedDepartmentIds) — they
+        // were never eligible to attend, so they shouldn't show up as a
+        // perpetually-pending row either.
+        $includedDepartmentIds = $session->eventDay->event->includedDepartmentIds();
+
         $roster = Student::where('role', Role::Student)
+            ->whereIn('department_id', $includedDepartmentIds)
             ->when($departmentId, fn ($q) => $q->where('department_id', $departmentId))
             ->with('department')
             ->orderBy('last_name')->orderBy('first_name')

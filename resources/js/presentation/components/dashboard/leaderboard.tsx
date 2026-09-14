@@ -9,9 +9,22 @@ import { Text } from '@/presentation/components/typography';
 
 const BAR_STYLE = 'bg-foreground';
 
+/** #1 gets a quiet amber tint, #2/#3 a quiet neutral tint — just enough to
+ * mark "this is a ranking" without a literal gold/silver/bronze medal. */
+const RANK_TONES = [
+    'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400',
+    'border-border bg-muted text-foreground',
+    'border-border bg-muted text-foreground',
+];
+
 export function RankBadge({ rank }: { rank: number }) {
     return (
-        <span className="flex size-7 shrink-0 items-center justify-center rounded-full border text-xs font-bold tabular-nums text-foreground">
+        <span
+            className={cn(
+                'flex size-7 shrink-0 items-center justify-center rounded-full border text-xs font-bold tabular-nums',
+                RANK_TONES[rank] ?? 'border-border text-foreground',
+            )}
+        >
             {rank + 1}
         </span>
     );
@@ -39,7 +52,18 @@ const row: Variants = {
  * up", used identically for penalties-by-event and attendance-by-
  * department so the two read as the same kind of breakdown.
  */
-export function Leaderboard({ entries, emptyLabel }: { entries: LeaderboardEntry[]; emptyLabel: string }) {
+export function Leaderboard({
+    entries,
+    emptyLabel,
+    barClassName = BAR_STYLE,
+}: {
+    entries: LeaderboardEntry[];
+    emptyLabel: string;
+    /** Tailwind bg-* class for the share bar's fill — lets callers give each
+     * leaderboard (departments vs. penalties, say) its own accent color
+     * instead of every ranked list on the page looking identical. */
+    barClassName?: string;
+}) {
     if (entries.length === 0) {
         return (
             <Card>
@@ -70,7 +94,7 @@ export function Leaderboard({ entries, emptyLabel }: { entries: LeaderboardEntry
                                     <span className="shrink-0 font-semibold tabular-nums text-foreground">{entry.value}</span>
                                 </div>
                                 <div className="ml-9.5 flex items-center gap-2">
-                                    <Progress value={entry.percentage} className="h-1.5" indicatorClassName={BAR_STYLE} />
+                                    <Progress value={entry.percentage} className="h-1.5" indicatorClassName={barClassName} />
                                     <span className="w-10 shrink-0 text-right text-caption tabular-nums text-muted-foreground">
                                         {Math.round(entry.percentage)}%
                                     </span>

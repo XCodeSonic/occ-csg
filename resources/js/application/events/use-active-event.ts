@@ -20,7 +20,6 @@ export function useActiveEvent() {
     const { data: events, isLoading } = useQuery({
         queryKey: EVENTS_QUERY_KEY,
         queryFn: httpEventsRepository.list,
-        refetchInterval: 60_000,
     });
 
     const activeEvent = events?.find((event) => event.status === EventStatus.Ongoing);

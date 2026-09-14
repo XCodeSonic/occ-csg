@@ -20,15 +20,13 @@ export interface ScannableSession {
  * dedicated endpoint for this: it's derived from GET /events, which every
  * role including Officer can read (EventModelPolicy::viewAny is
  * unrestricted). Shares EVENTS_QUERY_KEY with use-events.ts/use-active-event.ts
- * (same cache entry), but polls faster on its own — same pattern
- * use-active-event.ts already uses — since "a session just opened" is
- * time-critical for someone standing at the scanner waiting to start.
+ * (same cache entry). No background polling — pull down to refresh
+ * instead of it firing on a timer.
  */
 export function useScannableSessions() {
     const { data: events, isLoading } = useQuery({
         queryKey: EVENTS_QUERY_KEY,
         queryFn: httpEventsRepository.list,
-        refetchInterval: 15_000,
     });
 
     const sessions: ScannableSession[] = (events ?? []).flatMap((event) =>

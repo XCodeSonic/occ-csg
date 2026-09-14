@@ -140,13 +140,13 @@ it('allows a pending-password-change account to call change-password itself', fu
     $this->actingAs($student, 'sanctum')
         ->postJson('/api/auth/change-password', [
             'current_password' => 'correct-password',
-            'new_password' => 'brand-new-password',
-            'new_password_confirmation' => 'brand-new-password',
+            'new_password' => 'Brand-New-Password1!',
+            'new_password_confirmation' => 'Brand-New-Password1!',
         ])
         ->assertStatus(200);
 
     expect($student->fresh()->must_change_password)->toBeFalse()
-        ->and(Hash::check('brand-new-password', $student->fresh()->password))->toBeTrue();
+        ->and(Hash::check('Brand-New-Password1!', $student->fresh()->password))->toBeTrue();
 });
 
 it('rejects change-password with the wrong current password', function () {
@@ -155,8 +155,8 @@ it('rejects change-password with the wrong current password', function () {
     $this->actingAs($student, 'sanctum')
         ->postJson('/api/auth/change-password', [
             'current_password' => 'not-the-real-password',
-            'new_password' => 'brand-new-password',
-            'new_password_confirmation' => 'brand-new-password',
+            'new_password' => 'Brand-New-Password1!',
+            'new_password_confirmation' => 'Brand-New-Password1!',
         ])
         ->assertStatus(422);
 
@@ -169,11 +169,29 @@ it('rejects change-password when new password does not match confirmation', func
     $this->actingAs($student, 'sanctum')
         ->postJson('/api/auth/change-password', [
             'current_password' => 'correct-password',
-            'new_password' => 'brand-new-password',
+            'new_password' => 'Brand-New-Password1!',
             'new_password_confirmation' => 'typo-password',
         ])
         ->assertStatus(422)
         ->assertJsonValidationErrors('new_password');
+});
+
+it('rejects change-password when the new password fails the complexity requirements', function () {
+    $student = authTestStudent();
+
+    // Long enough (>=8) but missing uppercase, a number, and a symbol —
+    // min:8 alone would have let this through before the Password rule
+    // (mixedCase + numbers + symbols) was added.
+    $this->actingAs($student, 'sanctum')
+        ->postJson('/api/auth/change-password', [
+            'current_password' => 'correct-password',
+            'new_password' => 'lowercaseonly',
+            'new_password_confirmation' => 'lowercaseonly',
+        ])
+        ->assertStatus(422)
+        ->assertJsonValidationErrors('new_password');
+
+    expect(Hash::check('correct-password', $student->fresh()->password))->toBeTrue();
 });
 
 it('clears the gate after a successful password change, unblocking gated endpoints', function () {
@@ -183,8 +201,8 @@ it('clears the gate after a successful password change, unblocking gated endpoin
     $this->actingAs($student, 'sanctum')
         ->postJson('/api/auth/change-password', [
             'current_password' => 'correct-password',
-            'new_password' => 'brand-new-password',
-            'new_password_confirmation' => 'brand-new-password',
+            'new_password' => 'Brand-New-Password1!',
+            'new_password_confirmation' => 'Brand-New-Password1!',
         ])
         ->assertStatus(200);
 
@@ -214,4 +232,24 @@ it('logs out and revokes the current token', function () {
     $this->withHeader('Authorization', "Bearer {$token}")
         ->getJson('/api/auth/me')
         ->assertStatus(401);
+});
+
+it('throttles repeated login attempts for the same ip and username', function () {
+    // Login previously had no throttle at all — unlimited password
+    // guesses against any username. The 'login' limiter in
+    // AppServiceProvider allows 5/minute keyed on ip+username; the 6th
+    // attempt in the same minute should be rejected before it ever
+    // reaches AuthController, regardless of whether the password is right.
+    authTestStudent();
+
+    $attempt = fn () => $this->postJson('/api/auth/login', [
+        'username' => 'jcruz',
+        'password' => 'wrong-password',
+    ]);
+
+    for ($i = 0; $i < 5; $i++) {
+        $attempt()->assertStatus(401);
+    }
+
+    $attempt()->assertStatus(429);
 });

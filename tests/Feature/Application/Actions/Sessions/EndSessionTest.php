@@ -49,10 +49,10 @@ function endSessionEvent(): EventModel
     return EventModel::create(['name' => 'Test Event', 'created_by' => $creator->id]);
 }
 
-function endSessionSession(array $overrides = []): AttendanceSession
+function endSessionSession(array $overrides = [], ?EventModel $event = null): AttendanceSession
 {
     $day = EventDay::create([
-        'event_id' => endSessionEvent()->id,
+        'event_id' => ($event ?? endSessionEvent())->id,
         'date' => '2026-11-10',
         'day_number' => 1,
     ]);
@@ -85,12 +85,12 @@ function endSessionTimeOutSibling(AttendanceSession $timeInSession, array $overr
     ], $overrides));
 }
 
-function endSessionStudent(string $studentNumber, int $qrVersion = 1): Student
+function endSessionStudent(string $studentNumber, int $qrVersion = 1, ?string $departmentCode = null): Student
 {
     return Student::create([
         'student_number' => $studentNumber,
         'last_name' => 'Student', 'first_name' => 'Test',
-        'department_id' => endSessionDept('CS')->id,
+        'department_id' => endSessionDept($departmentCode ?? 'CS')->id,
         'username' => 'user'.$studentNumber,
         'password' => 'password',
         'qr_version' => $qrVersion,
@@ -204,3 +204,50 @@ it('throws when ending a session that has already ended', function () {
 
     (new EndSession)($session);
 })->throws(SessionAlreadyEndedException::class);
+
+it('never sweeps a student from an excluded department into Absent, and never penalizes them', function () {
+    $creator = Student::firstOrCreate(
+        ['student_number' => '2020000001'],
+        [
+            'last_name' => 'Admin', 'first_name' => 'CSG',
+            'department_id' => endSessionDept('CCS')->id,
+            'username' => 'csgadmin', 'password' => 'password',
+            'role' => Role::CsgAdmin,
+        ],
+    );
+    $bsit = endSessionDept('BSIT');
+    $bsba = endSessionDept('BSBA');
+
+    $scopedEvent = EventModel::create(['name' => 'BSIT-only Event', 'created_by' => $creator->id]);
+    $scopedEvent->departments()->sync([$bsit->id]);
+
+    $session = endSessionSession([], $scopedEvent);
+    $includedStudent = endSessionStudent('2023000010', departmentCode: $bsit->code);
+    $excludedDeptStudent = endSessionStudent('2023000011', departmentCode: $bsba->code);
+
+    $result = (new EndSession)($session);
+
+    // The BSIT student was never scanned — swept into Absent as normal.
+    $includedRecord = AttendanceRecord::where('session_id', $session->id)
+        ->where('student_id', $includedStudent->id)->first();
+    expect($includedRecord)->not->toBeNull()
+        ->and($includedRecord->status)->toBe(AttendanceStatus::Absent);
+
+    // The BSBA student's department was never part of this event's scope
+    // — no attendance_records row, and no penalty, even though they also
+    // never scanned.
+    expect(AttendanceRecord::where('session_id', $session->id)->where('student_id', $excludedDeptStudent->id)->exists())
+        ->toBeFalse()
+        ->and(AttendancePenalty::where('student_id', $excludedDeptStudent->id)->exists())->toBeFalse()
+        ->and($result['absent_created'])->toBe(1); // only the BSIT student
+});
+
+it('marks every student absent as usual when the event has no department restriction', function () {
+    $session = endSessionSession(); // endSessionEvent() — no departments synced, unrestricted
+    endSessionStudent('2023000012', departmentCode: 'BSIT');
+    endSessionStudent('2023000013', departmentCode: 'BSBA');
+
+    $result = (new EndSession)($session);
+
+    expect($result['absent_created'])->toBe(2);
+});

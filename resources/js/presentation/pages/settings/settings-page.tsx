@@ -1,4 +1,4 @@
-import { CalendarDays, CalendarRange, FileBarChart, Users } from 'lucide-react';
+import { Building2, CalendarDays, CalendarRange, FileBarChart, Receipt, Users } from 'lucide-react';
 
 import { Separator } from '@/components/ui/separator';
 import { useAuthStore } from '@/application/auth/auth.store';
@@ -11,6 +11,12 @@ const EVENTS_ROLES: Role[] = [Role.SystemAdmin, Role.CsgAdmin];
 // Academic years are a CSG-level power (spec §2/§3/§6 tier), not extended
 // to SC Admin the way the student roster and reports are.
 const ACADEMIC_YEAR_ROLES: Role[] = [Role.SystemAdmin, Role.CsgAdmin];
+// Departments (courses) are the same CSG-level tier as academic years —
+// DepartmentPolicy::create/update/updateLogo all gate on this same pair.
+const DEPARTMENT_ROLES: Role[] = [Role.SystemAdmin, Role.CsgAdmin];
+// Penalties are a CSG-level power (spec §2/§7.3), same tier as
+// exclusions — AttendancePenaltyPolicy::viewAny gates on this same pair.
+const PENALTY_ROLES: Role[] = [Role.SystemAdmin, Role.CsgAdmin];
 
 export function SettingsPage() {
     const student = useAuthStore((state) => state.student);
@@ -20,6 +26,8 @@ export function SettingsPage() {
     const canManage = MANAGE_ROLES.includes(student.role);
     const canManageEvents = EVENTS_ROLES.includes(student.role);
     const canManageAcademicYears = ACADEMIC_YEAR_ROLES.includes(student.role);
+    const canManageDepartments = DEPARTMENT_ROLES.includes(student.role);
+    const canManagePenalties = PENALTY_ROLES.includes(student.role);
 
     return (
         <div className="mx-auto max-w-md space-y-8">
@@ -27,7 +35,7 @@ export function SettingsPage() {
                 <Heading level="h1">Settings</Heading>
             </div>
 
-            {canManage || canManageEvents || canManageAcademicYears ? (
+            {canManage || canManageEvents || canManageAcademicYears || canManageDepartments || canManagePenalties ? (
                 <div className="overflow-hidden rounded-lg border border-border">
                     {canManage && (
                         <>
@@ -53,6 +61,24 @@ export function SettingsPage() {
                             {(canManage || canManageEvents) && <Separator />}
                             <SettingsRow to="/academic-years" icon={<CalendarRange className="size-5" />}>
                                 Academic Years
+                            </SettingsRow>
+                        </>
+                    )}
+                    {canManageDepartments && (
+                        <>
+                            {(canManage || canManageEvents || canManageAcademicYears) && <Separator />}
+                            <SettingsRow to="/departments" icon={<Building2 className="size-5" />}>
+                                Departments
+                            </SettingsRow>
+                        </>
+                    )}
+                    {canManagePenalties && (
+                        <>
+                            {(canManage || canManageEvents || canManageAcademicYears || canManageDepartments) && (
+                                <Separator />
+                            )}
+                            <SettingsRow to="/penalties" icon={<Receipt className="size-5" />}>
+                                Penalties
                             </SettingsRow>
                         </>
                     )}

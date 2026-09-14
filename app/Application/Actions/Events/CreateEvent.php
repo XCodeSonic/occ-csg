@@ -11,7 +11,7 @@ use App\Models\Student;
 final class CreateEvent
 {
     /**
-     * @param array{name: string, description?: string|null, semester_id?: int|null} $data
+     * @param array{name: string, description?: string|null, semester_id?: int|null, department_ids: array<int, int>} $data
      */
     public function __invoke(array $data, Student $createdBy): EventModel
     {
@@ -30,11 +30,17 @@ final class CreateEvent
             'semester_id' => $semesterId,
         ]);
 
+        // Written as the explicit set the form submitted (every department
+        // checkbox starts checked, so "no restriction" and "every
+        // department picked" land here identically) — see
+        // EventModel::includedDepartmentIds for what an empty set means.
+        $event->departments()->sync($data['department_ids']);
+
         // Refresh: `status` defaults to `ongoing` at the schema level and is
         // deliberately never set here (same reasoning as CreateSession) —
         // the DB row has it right after insert, but Eloquent doesn't
         // hydrate DB-side column defaults back onto the in-memory model.
-        return $event->refresh();
+        return $event->refresh()->load('departments');
     }
 
     private function resolveActiveSemesterId(): int

@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { BrowserQRCodeReader } from '@zxing/browser';
 import type { IScannerControls } from '@zxing/browser';
-import { AlertTriangle, CheckCircle2, ScanLine, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ScanLine, X, XCircle } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { useScanAttendance } from '@/application/sessions/use-scan-attendance';
 import { useScannableSessions, type ScannableSession } from '@/application/sessions/use-scannable-sessions';
 import { AttendanceStatus, CHECK_TYPE_LABEL, ScanOutcome } from '@/domain/enums';
@@ -20,9 +21,40 @@ import { cn } from '@/lib/utils';
 // without this, one badge in view would fire the scan endpoint repeatedly.
 const TOKEN_COOLDOWN_MS = 3000;
 
-// How long the result panel (photo/name/status) stays on screen before
-// the view returns to a plain "ready" camera feed.
-const FEEDBACK_DISPLAY_MS = 2500;
+// The result panel (photo/name/status) now stays up until the officer
+// taps its close button or the next badge is scanned — no auto-hide
+// timer, so there's no risk of it disappearing before they've had a
+// chance to read it.
+
+// How many entries the "Recent scans" list keeps, and the localStorage
+// key they're cached under so a refresh doesn't wipe the list.
+const RECENT_SCANS_LIMIT = 8;
+
+function recentScansStorageKey(sessionId: number): string {
+    return `occ-csg:scan:${sessionId}:recent`;
+}
+
+function loadStoredRecent(sessionId: number): ScanResult[] {
+    if (typeof window === 'undefined') return [];
+    try {
+        const raw = window.localStorage.getItem(recentScansStorageKey(sessionId));
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? (parsed as ScanResult[]) : [];
+    } catch {
+        return [];
+    }
+}
+
+function storeRecent(sessionId: number, recent: ScanResult[]): void {
+    if (typeof window === 'undefined') return;
+    try {
+        window.localStorage.setItem(recentScansStorageKey(sessionId), JSON.stringify(recent));
+    } catch {
+        // Storage full or unavailable (private browsing, quota) — the list
+        // just won't survive a refresh; scanning itself is unaffected.
+    }
+}
 
 const WINDOW_LABEL: Record<string, string> = {
     morning: 'Morning',
@@ -78,23 +110,40 @@ export function ScanPage() {
         return (
             <div className="mx-auto max-w-md space-y-4 pt-8">
                 <Heading level="h1">Scan</Heading>
-                <Text variant="small">Multiple sessions are open right now — choose which one to scan into.</Text>
-                <div className="space-y-2">
-                    {sessions.map((session) => (
-                        <button
-                            key={session.id}
-                            type="button"
-                            onClick={() => setSelectedSessionId(session.id)}
-                            className="block w-full rounded-xl border p-4 text-left transition-colors hover:bg-accent"
-                        >
-                            <Text className="font-medium">{session.eventName}</Text>
-                            <Text variant="small">
-                                Day {session.dayNumber} — {WINDOW_LABEL[session.windowType] ?? session.windowType} —{' '}
-                                {CHECK_TYPE_LABEL[session.checkType as keyof typeof CHECK_TYPE_LABEL] ?? session.checkType}
-                            </Text>
-                        </button>
-                    ))}
-                </div>
+                <Text variant="small">Choose a session to begin scanning.</Text>
+
+                {/* Non-dismissable: there's nothing to scan into until an
+                    officer picks one, so no close button, and clicking the
+                    overlay or pressing Escape shouldn't be able to leave
+                    the screen with no session selected. */}
+                <Dialog open>
+                    <DialogContent
+                        showCloseButton={false}
+                        onInteractOutside={(event) => event.preventDefault()}
+                        onEscapeKeyDown={(event) => event.preventDefault()}
+                    >
+                        <DialogHeader>
+                            <DialogTitle>Multiple sessions are open</DialogTitle>
+                            <DialogDescription>Choose which one to scan into.</DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-2">
+                            {sessions.map((session) => (
+                                <button
+                                    key={session.id}
+                                    type="button"
+                                    onClick={() => setSelectedSessionId(session.id)}
+                                    className="block w-full rounded-xl border p-4 text-left transition-colors hover:bg-accent"
+                                >
+                                    <Text className="font-medium">{session.eventName}</Text>
+                                    <Text variant="small">
+                                        Day {session.dayNumber} — {WINDOW_LABEL[session.windowType] ?? session.windowType} —{' '}
+                                        {CHECK_TYPE_LABEL[session.checkType as keyof typeof CHECK_TYPE_LABEL] ?? session.checkType}
+                                    </Text>
+                                </button>
+                            ))}
+                        </div>
+                    </DialogContent>
+                </Dialog>
             </div>
         );
     }
@@ -135,30 +184,41 @@ function Scanner({
 
     const isProcessingRef = useRef(false);
     const cooldownRef = useRef<Map<string, number>>(new Map());
-    const feedbackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const [feedback, setFeedback] = useState<Feedback | null>(null);
-    const [recent, setRecent] = useState<ScanResult[]>([]);
+    const [recent, setRecent] = useState<ScanResult[]>(() => loadStoredRecent(session.id));
     const [cameraError, setCameraError] = useState<string | null>(null);
 
-    const showFeedback = useCallback((next: Feedback) => {
-        const tone = next.kind === 'success' ? resultTone(next.result) : 'bad';
-        setFeedback(next);
-        playFeedbackTone(tone);
-        vibrateForTone(tone);
+    const showFeedback = useCallback(
+        (next: Feedback) => {
+            const tone = next.kind === 'success' ? resultTone(next.result) : 'bad';
+            setFeedback(next);
+            playFeedbackTone(tone);
+            vibrateForTone(tone);
 
-        if (next.kind === 'success') {
-            setRecent((prev) => [next.result, ...prev].slice(0, 8));
-        }
+            // Stays on screen until dismissFeedback runs (manual close, or
+            // the next successful/failed scan replacing it) — no timer.
+            if (next.kind === 'success') {
+                setRecent((prev) => {
+                    const updated = [next.result, ...prev].slice(0, RECENT_SCANS_LIMIT);
+                    storeRecent(session.id, updated);
+                    return updated;
+                });
+            }
+        },
+        [session.id],
+    );
 
-        if (feedbackTimeoutRef.current) clearTimeout(feedbackTimeoutRef.current);
-        feedbackTimeoutRef.current = setTimeout(() => setFeedback(null), FEEDBACK_DISPLAY_MS);
-    }, []);
+    const dismissFeedback = useCallback(() => setFeedback(null), []);
 
+    // Browsers block audio until a user gesture unlocks the page — the
+    // first scan is triggered by the camera, not a tap, so without this
+    // the very first beep could be silently dropped. One-time listener
+    // primes (creates/resumes) the shared AudioContext ahead of that.
     useEffect(() => {
-        return () => {
-            if (feedbackTimeoutRef.current) clearTimeout(feedbackTimeoutRef.current);
-        };
+        const unlock = () => getAudioContext();
+        window.addEventListener('pointerdown', unlock, { once: true });
+        return () => window.removeEventListener('pointerdown', unlock);
     }, []);
 
     useEffect(() => {
@@ -279,6 +339,14 @@ function Scanner({
 
                 {feedback && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/80 p-6 text-center">
+                        <button
+                            type="button"
+                            onClick={dismissFeedback}
+                            aria-label="Close"
+                            className="absolute right-3 top-3 rounded-full bg-white/10 p-1.5 text-white/80 transition-colors hover:bg-white/20 hover:text-white"
+                        >
+                            <X className="size-5" />
+                        </button>
                         {feedback.kind === 'success' ? (
                             <SuccessPanel result={feedback.result} checkType={session.checkType} />
                         ) : (
@@ -311,7 +379,12 @@ function Scanner({
                                     <Text className="truncate text-sm font-medium">{studentFullName(entry.student)}</Text>
                                     <Text variant="caption">{studentMeta(entry.student)}</Text>
                                 </div>
-                                <OutcomeBadge result={entry} checkType={session.checkType} />
+                                <div className="flex flex-col items-end gap-1">
+                                    <OutcomeBadge result={entry} checkType={session.checkType} />
+                                    {formatScanTime(entry.scannedAt) && (
+                                        <Text variant="caption">{formatScanTime(entry.scannedAt)}</Text>
+                                    )}
+                                </div>
                             </div>
                         ))}
                     </div>
@@ -341,6 +414,11 @@ function SuccessPanel({ result, checkType }: { result: ScanResult; checkType: st
                     {resultHeadline(result, checkLabel)}
                 </Text>
             </div>
+            {formatScanTime(result.scannedAt) && (
+                <Text variant="caption" className="text-white/60">
+                    Scanned at {formatScanTime(result.scannedAt)}
+                </Text>
+            )}
         </>
     );
 }
@@ -379,6 +457,14 @@ function studentMeta(student: ScannedStudent): string {
     return [student.departmentCode, student.yearLevel ? `Year ${student.yearLevel}` : null, student.section]
         .filter((part): part is string => Boolean(part))
         .join(' • ');
+}
+
+/** The wall-clock time the officer's device recorded the scan at, e.g. "10:32:05 AM". */
+function formatScanTime(scannedAt: string | null): string | null {
+    if (!scannedAt) return null;
+    const date = new Date(scannedAt);
+    if (Number.isNaN(date.getTime())) return null;
+    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' });
 }
 
 let sharedAudioContext: AudioContext | null = null;
