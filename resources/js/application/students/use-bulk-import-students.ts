@@ -7,7 +7,7 @@ export function useBulkImportStudents() {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: (file: File) => httpStudentsRepository.bulkImport(file),
+        mutationFn: (files: File[]) => httpStudentsRepository.bulkImport(files),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: STUDENTS_QUERY_KEY });
         },

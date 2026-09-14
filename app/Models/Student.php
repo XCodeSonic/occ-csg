@@ -15,7 +15,7 @@ class Student extends Authenticatable
 
     protected $fillable = [
         'student_number', 'last_name', 'first_name', 'middle_name', 'suffix',
-        'department_id', 'year_level', 'section', 'role', 'sc_admin_department_id',
+        'department_id', 'major', 'year_level', 'section', 'date_enrolled', 'role', 'sc_admin_department_id',
         'officer_event_id', 'semester_id', 'photo_path', 'qr_token', 'qr_version', 'username', 'password',
         'must_change_password', 'has_accepted_terms',
     ];
@@ -49,6 +49,7 @@ class Student extends Authenticatable
             'role' => Role::class,
             'must_change_password' => 'boolean',
             'has_accepted_terms' => 'boolean',
+            'date_enrolled' => 'date',
             'password' => 'hashed',
         ];
     }

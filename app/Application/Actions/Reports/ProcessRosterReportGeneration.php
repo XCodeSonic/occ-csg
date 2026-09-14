@@ -39,6 +39,7 @@ final class ProcessRosterReportGeneration
             $report = ($this->buildEventRosterReport)(
                 $event,
                 $generation->department_id,
+                $generation->major,
                 $generation->year_level,
                 $generation->section,
                 onGroupBuilt: function () use ($generation) {

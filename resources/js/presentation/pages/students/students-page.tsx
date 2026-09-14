@@ -83,7 +83,7 @@ export function StudentsPage() {
     const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
     const [importReport, setImportReport] = useState<BulkImportReport | null>(null);
     const [preview, setPreview] = useState<BulkImportPreview | null>(null);
-    const [pendingFile, setPendingFile] = useState<File | null>(null);
+    const [pendingFiles, setPendingFiles] = useState<File[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const previewBulkImportStudents = usePreviewBulkImportStudents();
     const bulkImportStudents = useBulkImportStudents();
@@ -144,46 +144,46 @@ export function StudentsPage() {
     }
 
     function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
-        const file = event.target.files?.[0];
+        const files = Array.from(event.target.files ?? []);
         event.target.value = '';
-        if (!file) return;
+        if (files.length === 0) return;
 
         setImportReport(null);
 
-        previewBulkImportStudents.mutate(file, {
+        previewBulkImportStudents.mutate(files, {
             onSuccess: (result) => {
                 setPreview(result);
-                setPendingFile(file);
+                setPendingFiles(files);
             },
             onError: () => {
-                toast.error('Could not read the file. Check the format and try again.');
+                toast.error('Could not read one or more files. Check the format and try again.');
             },
         });
     }
 
     function handleConfirmImport() {
-        if (!pendingFile) return;
+        if (pendingFiles.length === 0) return;
 
-        bulkImportStudents.mutate(pendingFile, {
+        bulkImportStudents.mutate(pendingFiles, {
             onSuccess: (report) => {
                 setImportReport(report);
                 setPreview(null);
-                setPendingFile(null);
+                setPendingFiles([]);
                 if (report.failed === 0) {
-                    toast.success(`Imported ${report.imported} of ${report.totalRows} students.`);
+                    toast.success(`Imported ${report.imported} of ${report.totalRows} students across ${report.totalFiles} section${report.totalFiles === 1 ? '' : 's'}.`);
                 } else {
                     toast.warning(`Imported ${report.imported} of ${report.totalRows} students — ${report.failed} failed.`);
                 }
             },
             onError: () => {
-                toast.error('Could not import the file.');
+                toast.error('Could not import the batch.');
             },
         });
     }
 
     function handleCancelImport() {
         setPreview(null);
-        setPendingFile(null);
+        setPendingFiles([]);
     }
 
     function startEditingRole(row: Student) {
@@ -360,8 +360,11 @@ export function StudentsPage() {
                     <DialogHeader>
                         <DialogTitle>Bulk import</DialogTitle>
                         <DialogDescription>
-                            Upload an Excel/CSV file (max 1,000 rows per file — split larger rosters into batches). You'll
-                            see a full preview before anything is saved.
+                            One file per section, named after the section itself (e.g. "BSIT-1A.xlsx" or
+                            "BSBA-FM-1H.xlsx") — course, major, and year level are all read from the filename, so the
+                            sheet itself only needs ID Number, Last Name, First Name, Middle Name, and Date Enrolled.
+                            Select every section file you're uploading at once; you'll see a full preview before
+                            anything is saved.
                         </DialogDescription>
                     </DialogHeader>
 
@@ -376,12 +379,13 @@ export function StudentsPage() {
                                 onClick={() => fileInputRef.current?.click()}
                                 disabled={previewBulkImportStudents.isPending || !!preview}
                             >
-                                {previewBulkImportStudents.isPending ? 'Reading file…' : 'Choose file'}
+                                {previewBulkImportStudents.isPending ? 'Reading files…' : 'Choose section files'}
                             </Button>
                             <input
                                 ref={fileInputRef}
                                 type="file"
                                 accept=".xlsx,.xls,.csv"
+                                multiple
                                 className="hidden"
                                 onChange={handleFileChange}
                             />
@@ -393,55 +397,48 @@ export function StudentsPage() {
                                     Preview — nothing has been saved yet
                                 </Text>
                                 <Text variant="small">
-                                    {preview.valid} of {preview.totalRows} rows are ready to import
-                                    {preview.invalid > 0 ? `; ${preview.invalid} have errors and will be skipped` : ''}.
+                                    {preview.valid} of {preview.totalRows} rows across {preview.totalFiles} file
+                                    {preview.totalFiles === 1 ? '' : 's'} are ready to import
+                                    {preview.invalid > 0 ? `; ${preview.invalid} rows have errors and will be skipped` : ''}.
                                 </Text>
 
-                                {preview.invalid > 0 && (
-                                    <div className="space-y-1">
-                                        <Text variant="caption" className="font-medium">
-                                            Rows with errors
-                                        </Text>
-                                        <ul className="max-h-56 space-y-1 overflow-y-auto">
-                                            {preview.rows
-                                                .filter((row) => !row.valid)
-                                                .map((row) => (
-                                                    <li key={row.row}>
-                                                        <Text variant="caption">
-                                                            Row {row.row}
-                                                            {row.studentNumber ? ` (${row.studentNumber})` : ''}:{' '}
-                                                            {row.reasons.join('; ')}
-                                                        </Text>
-                                                    </li>
-                                                ))}
-                                        </ul>
-                                    </div>
-                                )}
-
-                                {preview.valid > 0 && (
-                                    <div className="space-y-1">
-                                        <Text variant="caption" className="font-medium">
-                                            Ready to import (first 20 shown)
-                                        </Text>
-                                        <ul className="max-h-56 space-y-1 overflow-y-auto">
-                                            {preview.rows
-                                                .filter((row) => row.valid)
-                                                .slice(0, 20)
-                                                .map((row) => (
-                                                    <li key={row.row}>
-                                                        <Text variant="caption">
-                                                            {row.studentNumber} — {row.lastName}, {row.firstName} (
-                                                            {row.departmentCode} · Yr {row.yearLevel}
-                                                            {row.section ? ` · ${row.section}` : ''})
-                                                        </Text>
-                                                    </li>
-                                                ))}
-                                        </ul>
-                                        {preview.valid > 20 && (
-                                            <Text variant="caption">and {preview.valid - 20} more…</Text>
-                                        )}
-                                    </div>
-                                )}
+                                <ul className="max-h-72 space-y-2 overflow-y-auto">
+                                    {preview.files.map((file) => (
+                                        <li key={file.filename} className="space-y-1 rounded border border-border/60 p-2">
+                                            <Text variant="caption" className="font-medium">
+                                                {file.filename}
+                                                {file.valid
+                                                    ? ` — ${file.departmentCode}${file.major ? ` ${file.major}` : ''} Yr ${file.yearLevel} ${file.section}`
+                                                    : ''}
+                                            </Text>
+                                            {!file.valid && (
+                                                <Text variant="caption" className="text-destructive">
+                                                    {file.parseError}
+                                                </Text>
+                                            )}
+                                            {file.valid && file.rows.some((r) => !r.valid) && (
+                                                <ul className="space-y-0.5 pl-2">
+                                                    {file.rows
+                                                        .filter((row) => !row.valid)
+                                                        .map((row) => (
+                                                            <li key={row.row}>
+                                                                <Text variant="caption">
+                                                                    Row {row.row}
+                                                                    {row.studentNumber ? ` (${row.studentNumber})` : ''}:{' '}
+                                                                    {row.reasons.join('; ')}
+                                                                </Text>
+                                                            </li>
+                                                        ))}
+                                                </ul>
+                                            )}
+                                            {file.valid && (
+                                                <Text variant="caption">
+                                                    {file.rows.filter((r) => r.valid).length} of {file.rows.length} rows ready
+                                                </Text>
+                                            )}
+                                        </li>
+                                    ))}
+                                </ul>
 
                                 <div className="flex gap-2 pt-1">
                                     <Button
@@ -470,15 +467,16 @@ export function StudentsPage() {
                         {importReport && (
                             <div className="space-y-2 rounded-md border border-border p-3">
                                 <Text variant="small">
-                                    {importReport.imported} of {importReport.totalRows} rows imported
+                                    {importReport.imported} of {importReport.totalRows} rows imported across{' '}
+                                    {importReport.totalFiles} file{importReport.totalFiles === 1 ? '' : 's'}
                                     {importReport.failed > 0 ? `, ${importReport.failed} failed` : ''}.
                                 </Text>
                                 {importReport.errors.length > 0 && (
                                     <ul className="space-y-1">
-                                        {importReport.errors.map((error) => (
-                                            <li key={error.row}>
+                                        {importReport.errors.map((error, index) => (
+                                            <li key={`${error.filename}-${error.row}-${index}`}>
                                                 <Text variant="caption">
-                                                    Row {error.row}
+                                                    {error.filename} · Row {error.row}
                                                     {error.studentNumber ? ` (${error.studentNumber})` : ''}:{' '}
                                                     {error.reasons.join('; ')}
                                                 </Text>

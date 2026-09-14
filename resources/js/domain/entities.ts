@@ -45,10 +45,15 @@ export interface Student {
     // convention.
     departmentName?: string;
     departmentCode?: string;
+    // Only some courses have a sub-major (BSBA's FM/MM, BSED's ENG, ...) —
+    // null for courses that don't (BEED, BSIT).
+    major: string | null;
     // Backend column is a free-text string (StoreStudentRequest: 'string',
     // 'max:20' — e.g. "1", "2", "Irregular"), not a number.
     yearLevel: string | null;
     section: string | null;
+    // ISO date string (YYYY-MM-DD), or null if not recorded.
+    dateEnrolled: string | null;
     role: Role;
     scAdminDepartmentId: number | null;
     officerEventId: number | null;

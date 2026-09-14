@@ -16,7 +16,7 @@ class StudentBulkImportPreviewController extends Controller
      */
     public function store(PreviewBulkImportStudentsRequest $request, BulkImportStudents $bulkImportStudents)
     {
-        $preview = $bulkImportStudents->preview($request->file('file'), $request->user());
+        $preview = $bulkImportStudents->preview($request->file('files'), $request->user());
 
         return response()->json($preview);
     }

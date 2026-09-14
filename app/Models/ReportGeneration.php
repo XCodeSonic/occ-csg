@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class ReportGeneration extends Model
 {
     protected $fillable = [
-        'event_id', 'event_ids', 'format', 'department_id', 'year_level', 'section',
+        'event_id', 'event_ids', 'format', 'department_id', 'major', 'year_level', 'section',
         'status', 'total_steps', 'processed_steps',
         'file_disk', 'file_path', 'file_name', 'error_message', 'requested_by',
     ];

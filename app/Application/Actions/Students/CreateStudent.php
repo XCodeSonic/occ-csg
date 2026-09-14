@@ -57,8 +57,10 @@ final class CreateStudent
      *     middle_name?: string|null,
      *     suffix?: string|null,
      *     department_id: int,
+     *     major?: string|null,
      *     year_level: string,
      *     section?: string|null,
+     *     date_enrolled?: string|null,
      *     semester_id?: int|null,
      * } $data
      */
@@ -72,8 +74,10 @@ final class CreateStudent
                 'middle_name' => $data['middle_name'] ?? null,
                 'suffix' => $data['suffix'] ?? null,
                 'department_id' => $data['department_id'],
+                'major' => $data['major'] ?? null,
                 'year_level' => $data['year_level'],
                 'section' => $data['section'] ?? null,
+                'date_enrolled' => $data['date_enrolled'] ?? null,
                 // A student is enrolled into a semester at creation time
                 // (spec: "students to a semester") — defaults to whichever
                 // semester is currently active so callers that don't know

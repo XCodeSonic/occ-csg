@@ -38,6 +38,7 @@ final class ProcessMasterReportGeneration
             $report = ($this->buildMasterRosterReport)(
                 $events,
                 $generation->department_id,
+                $generation->major,
                 $generation->year_level,
                 $generation->section,
                 onGroupBuilt: function () use ($generation) {

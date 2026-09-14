@@ -10,7 +10,7 @@ class StudentBulkImportController extends Controller
 {
     public function store(BulkImportStudentsRequest $request, BulkImportStudents $bulkImportStudents)
     {
-        $report = $bulkImportStudents($request->file('file'), $request->user());
+        $report = $bulkImportStudents($request->file('files'), $request->user());
 
         return response()->json($report);
     }

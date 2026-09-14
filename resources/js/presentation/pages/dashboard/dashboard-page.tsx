@@ -67,7 +67,7 @@ export function DashboardPage() {
         <div className="space-y-8">
             <div>
                 <Heading level="h1">Dashboard</Heading>
-                <Text variant="small">{subtitleFor(data, student.role)}</Text>
+                <Text variant="small">{subtitleFor(data)}</Text>
             </div>
 
             {isLoading && <Text variant="small">Loading…</Text>}
@@ -81,7 +81,7 @@ export function DashboardPage() {
     );
 }
 
-function subtitleFor(data: DashboardSummary | undefined, role: string): string {
+function subtitleFor(data: DashboardSummary | undefined): string {
     if (!data) return 'Loading your dashboard…';
     if (isOfficerSummary(data)) return 'Your scanning activity across every session.';
     if (isStudentSummary(data)) return 'Your attendance record and current standing.';

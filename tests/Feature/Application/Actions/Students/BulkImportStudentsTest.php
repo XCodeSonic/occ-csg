@@ -28,11 +28,14 @@ function bulkImportActor(string $role, ?int $scAdminDeptId = null): Student
 }
 
 /**
- * Builds a plain-CSV upload — Maatwebsite\Excel reads csv/xlsx/xls
- * identically once past the file-format layer, and a CSV is far simpler
- * to hand-construct in a test than a real xlsx binary.
+ * Builds a plain-CSV upload named after a *section* (e.g.
+ * "BSIT-1A.csv") — Maatwebsite\Excel reads csv/xlsx/xls identically once
+ * past the file-format layer, and a CSV is far simpler to hand-construct
+ * in a test than a real xlsx binary. Course/major/year/section are read
+ * from $filename, not from any column in the sheet — see
+ * SectionFilename.
  */
-function bulkImportFile(array $rows, array $headers = ['student_number', 'last_name', 'first_name', 'middle_name', 'suffix', 'department_code', 'year_level', 'section']): UploadedFile
+function bulkImportFile(string $filename, array $rows, array $headers = ['id_number', 'last_name', 'first_name', 'middle_name', 'date_enrolled']): UploadedFile
 {
     $lines = [implode(',', $headers)];
 
@@ -40,76 +43,118 @@ function bulkImportFile(array $rows, array $headers = ['student_number', 'last_n
         $lines[] = implode(',', array_map(fn ($v) => (string) ($v ?? ''), $row));
     }
 
-    return UploadedFile::fake()->createWithContent('import.csv', implode("\n", $lines));
+    return UploadedFile::fake()->createWithContent($filename, implode("\n", $lines));
 }
 
-it('imports every valid row and creates real student records', function () {
-    bulkImportDept('BSIT');
+it('imports every valid row and creates real student records, reading course/major/year/section from the filename', function () {
+    bulkImportDept('BSBA');
     $actor = bulkImportActor('csg_admin');
 
-    $file = bulkImportFile([
-        ['2023000001', 'Cruz', 'Juan', 'Dela', '', 'BSIT', '1', 'A'],
-        ['2023000002', 'Reyes', 'Ana', 'Santos', '', 'BSIT', '2', 'B'],
+    $file = bulkImportFile('BSBA-FM-1H.csv', [
+        ['2023000001', 'Cruz', 'Juan', 'Dela', '2023-06-05'],
+        ['2023000002', 'Reyes', 'Ana', 'Santos', ''],
     ]);
 
-    $report = (new BulkImportStudents)($file, $actor);
+    $report = (new BulkImportStudents)([$file], $actor);
 
-    expect($report['total_rows'])->toBe(2)
+    expect($report['total_files'])->toBe(1)
+        ->and($report['total_rows'])->toBe(2)
         ->and($report['imported'])->toBe(2)
         ->and($report['failed'])->toBe(0)
         ->and($report['errors'])->toBe([]);
 
-    expect(Student::where('student_number', '2023000001')->exists())->toBeTrue()
-        ->and(Student::where('student_number', '2023000002')->exists())->toBeTrue();
+    $first = Student::where('student_number', '2023000001')->firstOrFail();
+    expect($first->department->code)->toBe('BSBA')
+        ->and($first->major)->toBe('FM')
+        ->and($first->year_level)->toBe('1')
+        ->and($first->section)->toBe('1H')
+        ->and($first->date_enrolled?->format('Y-m-d'))->toBe('2023-06-05');
+
+    $second = Student::where('student_number', '2023000002')->firstOrFail();
+    expect($second->date_enrolled)->toBeNull();
+});
+
+it('imports a course with no major segment (e.g. BEED/BSIT) leaving major null', function () {
+    bulkImportDept('BSIT');
+    $actor = bulkImportActor('csg_admin');
+
+    $file = bulkImportFile('BSIT-1A.csv', [
+        ['2023000001', 'Cruz', 'Juan', 'Dela', ''],
+    ]);
+
+    (new BulkImportStudents)([$file], $actor);
+
+    $student = Student::where('student_number', '2023000001')->firstOrFail();
+    expect($student->department->code)->toBe('BSIT')
+        ->and($student->major)->toBeNull()
+        ->and($student->section)->toBe('1A');
 });
 
 it('reports a missing required field without importing that row, but still imports the rest', function () {
     bulkImportDept('BSIT');
     $actor = bulkImportActor('csg_admin');
 
-    $file = bulkImportFile([
-        ['2023000001', '', 'Juan', 'Dela', '', 'BSIT', '1', 'A'], // missing last_name
-        ['2023000002', 'Reyes', 'Ana', 'Santos', '', 'BSIT', '2', 'B'],
+    $file = bulkImportFile('BSIT-1A.csv', [
+        ['2023000001', '', 'Juan', 'Dela', ''], // missing last_name
+        ['2023000002', 'Reyes', 'Ana', 'Santos', ''],
     ]);
 
-    $report = (new BulkImportStudents)($file, $actor);
+    $report = (new BulkImportStudents)([$file], $actor);
 
     expect($report['imported'])->toBe(1)
         ->and($report['failed'])->toBe(1)
         ->and($report['errors'][0]['row'])->toBe(2)
+        ->and($report['errors'][0]['filename'])->toBe('BSIT-1A.csv')
         ->and($report['errors'][0]['reasons'])->toContain('Missing required field: last_name');
 
     expect(Student::where('student_number', '2023000001')->exists())->toBeFalse();
 });
 
-it('reports an unknown department code', function () {
+it('rejects a file whose name has no course/major/year/section shape', function () {
     $actor = bulkImportActor('csg_admin');
 
-    $file = bulkImportFile([
-        ['2023000001', 'Cruz', 'Juan', 'Dela', '', 'NOPE', '1', 'A'],
+    $file = bulkImportFile('random-notes.csv', [
+        ['2023000001', 'Cruz', 'Juan', 'Dela', ''],
     ]);
 
-    $report = (new BulkImportStudents)($file, $actor);
+    $report = (new BulkImportStudents)([$file], $actor);
 
-    expect($report['failed'])->toBe(1)
-        ->and($report['errors'][0]['reasons'])->toContain('Unknown department code: NOPE');
+    expect($report['total_files'])->toBe(1)
+        ->and($report['total_rows'])->toBe(0)
+        ->and($report['imported'])->toBe(0)
+        ->and($report['failed'])->toBe(0);
 });
 
-it('flags a duplicate student number within the same file, keeping the first occurrence', function () {
+it('reports an unknown department code parsed from the filename', function () {
+    $actor = bulkImportActor('csg_admin');
+
+    $file = bulkImportFile('NOPE-1A.csv', [
+        ['2023000001', 'Cruz', 'Juan', 'Dela', ''],
+    ]);
+
+    $preview = (new BulkImportStudents)->preview([$file], $actor);
+
+    expect($preview['files'][0]['valid'])->toBeFalse()
+        ->and($preview['files'][0]['parse_error'])->toContain('Unknown department code: NOPE');
+});
+
+it('flags a duplicate student number across two files in the same batch, keeping the first occurrence', function () {
     bulkImportDept('BSIT');
     $actor = bulkImportActor('csg_admin');
 
-    $file = bulkImportFile([
-        ['2023000001', 'Cruz', 'Juan', 'Dela', '', 'BSIT', '1', 'A'],
-        ['2023000001', 'Cruz', 'Juan', 'Dela', '', 'BSIT', '1', 'A'],
+    $fileA = bulkImportFile('BSIT-1A.csv', [
+        ['2023000001', 'Cruz', 'Juan', 'Dela', ''],
+    ]);
+    $fileB = bulkImportFile('BSIT-1B.csv', [
+        ['2023000001', 'Cruz', 'Juan', 'Dela', ''],
     ]);
 
-    $report = (new BulkImportStudents)($file, $actor);
+    $report = (new BulkImportStudents)([$fileA, $fileB], $actor);
 
     expect($report['imported'])->toBe(1)
         ->and($report['failed'])->toBe(1)
-        ->and($report['errors'][0]['row'])->toBe(3)
-        ->and($report['errors'][0]['reasons'])->toContain('Duplicate student ID within this file');
+        ->and($report['errors'][0]['filename'])->toBe('BSIT-1B.csv')
+        ->and($report['errors'][0]['reasons'])->toContain('Duplicate student ID within this batch');
 });
 
 it('flags a student number that already exists in the database', function () {
@@ -120,60 +165,69 @@ it('flags a student number that already exists in the database', function () {
         'department_id' => $bsit->id, 'username' => 'existing', 'password' => 'password',
     ]);
 
-    $file = bulkImportFile([
-        ['2023000001', 'Cruz', 'Juan', 'Dela', '', 'BSIT', '1', 'A'],
+    $file = bulkImportFile('BSIT-1A.csv', [
+        ['2023000001', 'Cruz', 'Juan', 'Dela', ''],
     ]);
 
-    $report = (new BulkImportStudents)($file, $actor);
+    $report = (new BulkImportStudents)([$file], $actor);
 
     expect($report['failed'])->toBe(1)
         ->and($report['errors'][0]['reasons'])->toContain('Student ID already exists');
 });
 
-it('lets a csg admin import across multiple departments in one file', function () {
+it('lets a csg admin import across multiple departments in one batch', function () {
     bulkImportDept('BSIT');
-    bulkImportDept('EDUC');
+    bulkImportDept('BEED');
     $actor = bulkImportActor('csg_admin');
 
-    $file = bulkImportFile([
-        ['2023000001', 'Cruz', 'Juan', 'Dela', '', 'BSIT', '1', 'A'],
-        ['2023000002', 'Reyes', 'Ana', 'Santos', '', 'EDUC', '1', 'A'],
+    $fileA = bulkImportFile('BSIT-1A.csv', [
+        ['2023000001', 'Cruz', 'Juan', 'Dela', ''],
+    ]);
+    $fileB = bulkImportFile('BEED-1A.csv', [
+        ['2023000002', 'Reyes', 'Ana', 'Santos', ''],
     ]);
 
-    $report = (new BulkImportStudents)($file, $actor);
+    $report = (new BulkImportStudents)([$fileA, $fileB], $actor);
 
-    expect($report['imported'])->toBe(2)->and($report['failed'])->toBe(0);
+    expect($report['total_files'])->toBe(2)
+        ->and($report['imported'])->toBe(2)->and($report['failed'])->toBe(0);
 });
 
-it('flags rows outside an sc admin\'s administered department, but still imports rows within it', function () {
+it('flags a whole file outside an sc admin\'s administered department, but still imports files within it', function () {
     $bsit = bulkImportDept('BSIT');
-    bulkImportDept('EDUC');
+    bulkImportDept('BEED');
     $actor = bulkImportActor('sc_admin', $bsit->id);
 
-    $file = bulkImportFile([
-        ['2023000001', 'Cruz', 'Juan', 'Dela', '', 'BSIT', '1', 'A'],
-        ['2023000002', 'Reyes', 'Ana', 'Santos', '', 'EDUC', '1', 'A'],
+    $fileA = bulkImportFile('BSIT-1A.csv', [
+        ['2023000001', 'Cruz', 'Juan', 'Dela', ''],
+    ]);
+    $fileB = bulkImportFile('BEED-1A.csv', [
+        ['2023000002', 'Reyes', 'Ana', 'Santos', ''],
     ]);
 
-    $report = (new BulkImportStudents)($file, $actor);
+    $report = (new BulkImportStudents)([$fileA, $fileB], $actor);
 
     expect($report['imported'])->toBe(1)
-        ->and($report['failed'])->toBe(1)
-        ->and($report['errors'][0]['reasons'][0])->toContain('Outside your administered department');
+        ->and($report['failed'])->toBe(0)
+        ->and($report['total_files'])->toBe(2);
+
+    $preview = (new BulkImportStudents)->preview([$fileB], $actor);
+    expect($preview['files'][0]['valid'])->toBeFalse()
+        ->and($preview['files'][0]['parse_error'])->toContain('Outside your administered department');
 
     expect(Student::where('student_number', '2023000001')->exists())->toBeTrue()
         ->and(Student::where('student_number', '2023000002')->exists())->toBeFalse();
 });
 
-it('throws when the file has more data rows than the synchronous import cap', function () {
+it('throws when a single file has more data rows than the synchronous import cap', function () {
     bulkImportDept('BSIT');
     $actor = bulkImportActor('csg_admin');
 
     $rows = [];
-    for ($i = 1; $i <= BulkImportStudents::MAX_ROWS + 1; $i++) {
-        $rows[] = [sprintf('2023%06d', $i), 'Cruz', 'Juan', 'Dela', '', 'BSIT', '1', 'A'];
+    for ($i = 1; $i <= BulkImportStudents::MAX_ROWS_PER_FILE + 1; $i++) {
+        $rows[] = [sprintf('2023%06d', $i), 'Cruz', 'Juan', 'Dela', ''];
     }
-    $file = bulkImportFile($rows);
+    $file = bulkImportFile('BSIT-1A.csv', $rows);
 
-    (new BulkImportStudents)($file, $actor);
+    (new BulkImportStudents)([$file], $actor);
 })->throws(TooManyImportRowsException::class);

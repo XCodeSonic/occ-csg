@@ -37,6 +37,7 @@ final class StartRosterReportGeneration
         Student $requester,
         string $format,
         ?int $departmentId,
+        ?string $major,
         ?string $yearLevel,
         ?string $section,
     ): ReportGeneration {
@@ -46,10 +47,11 @@ final class StartRosterReportGeneration
             'event_id' => $event->id,
             'format' => $format,
             'department_id' => $departmentId,
+            'major' => $major,
             'year_level' => $yearLevel,
             'section' => $section,
             'status' => ReportGenerationStatus::Pending,
-            'total_steps' => $this->estimateTotalSteps($departmentId, $yearLevel, $section, $format),
+            'total_steps' => $this->estimateTotalSteps($departmentId, $major, $yearLevel, $section, $format),
             'processed_steps' => 0,
             'requested_by' => $requester->id,
         ]);
@@ -72,13 +74,14 @@ final class StartRosterReportGeneration
      * step. See ProcessRosterReportGeneration for exactly what each
      * increment corresponds to.
      */
-    private function estimateTotalSteps(?int $departmentId, ?string $yearLevel, ?string $section, string $format): int
+    private function estimateTotalSteps(?int $departmentId, ?string $major, ?string $yearLevel, ?string $section, string $format): int
     {
         $groupCount = max(1, Student::where('role', Role::Student)
             ->when($departmentId, fn ($q) => $q->where('department_id', $departmentId))
+            ->when(filled($major), fn ($q) => $q->where('major', $major))
             ->when(filled($yearLevel), fn ($q) => $q->where('year_level', $yearLevel))
             ->when(filled($section), fn ($q) => $q->where('section', $section))
-            ->select('department_id', 'year_level', 'section')
+            ->select('department_id', 'major', 'year_level', 'section')
             ->distinct()
             ->get()
             ->count());

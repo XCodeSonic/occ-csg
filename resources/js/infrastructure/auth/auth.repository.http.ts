@@ -14,8 +14,10 @@ interface StudentDto {
     // (AuthenticateStudent / AuthController::me both do) — absent only
     // if some future caller of this DTO skips that load.
     department?: { id: number; name: string; code: string } | null;
+    major: string | null;
     year_level: string | null;
     section: string | null;
+    date_enrolled: string | null;
     role: Student['role'];
     sc_admin_department_id: number | null;
     photo_path: string | null;
@@ -35,8 +37,10 @@ function toStudent(dto: StudentDto): Student {
         departmentId: dto.department_id,
         departmentName: dto.department?.name,
         departmentCode: dto.department?.code,
+        major: dto.major,
         yearLevel: dto.year_level,
         section: dto.section,
+        dateEnrolled: dto.date_enrolled,
         role: dto.role,
         scAdminDepartmentId: dto.sc_admin_department_id,
         officerEventId: null,

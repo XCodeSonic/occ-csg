@@ -38,6 +38,7 @@ class RosterReportGenerationController extends Controller
             $user,
             $request->string('format')->value() ?: 'xlsx',
             $departmentId,
+            $request->string('major')->value() ?: null,
             $request->string('year_level')->value() ?: null,
             $request->string('section')->value() ?: null,
         );

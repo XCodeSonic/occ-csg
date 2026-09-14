@@ -65,7 +65,7 @@ final class EventRosterGroupSheet implements FromArray, ShouldAutoSize, WithEven
 
     public function title(): string
     {
-        $title = trim(sprintf('%s %s%s', $this->group['department_code'], $this->group['year_level'], $this->group['section']));
+        $title = trim(sprintf('%s%s %s%s', $this->group['department_code'], $this->group['major'] ? '-'.$this->group['major'] : '', $this->group['year_level'], $this->group['section']));
 
         // Excel sheet names are capped at 31 characters — long department
         // names/codes are the only realistic way to hit that here.
@@ -266,7 +266,7 @@ final class EventRosterGroupSheet implements FromArray, ShouldAutoSize, WithEven
     {
         $groupLabel = trim(sprintf(
             '%s — Year %s — Section %s',
-            $this->group['department_code'],
+            trim($this->group['department_code'].($this->group['major'] ? ' '.$this->group['major'] : '')),
             $this->group['year_level'] ?: '—',
             $this->group['section'] ?: '—',
         ));

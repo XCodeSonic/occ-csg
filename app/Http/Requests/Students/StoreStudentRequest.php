@@ -34,8 +34,14 @@ class StoreStudentRequest extends FormRequest
             'middle_name' => ['required', 'string', 'max:255'],
             'suffix' => ['nullable', 'string', 'max:20'],
             'department_id' => ['required', 'integer', 'exists:departments,id'],
+            // Only some courses (BSBA's FM/MM, BSED's ENG, ...) have a
+            // sub-major — nullable rather than tied to department, since
+            // that's a per-course fact the section filenames encode, not
+            // something the schema enforces.
+            'major' => ['nullable', 'string', 'max:50'],
             'year_level' => ['required', 'string', 'max:20'],
             'section' => ['nullable', 'string', 'max:50'],
+            'date_enrolled' => ['nullable', 'date'],
             // Optional — CreateStudent defaults to the active semester
             // when omitted, so callers only need this to enroll a
             // student into a specific (e.g. non-active) semester.

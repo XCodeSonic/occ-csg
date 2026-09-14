@@ -28,6 +28,19 @@ import { httpAuthRepository } from '@/infrastructure/auth/auth.repository.http';
 // it's already small.
 type LoginView = 'picker' | 'password' | 'form';
 
+// Student IDs are stored (and matched on login) in dashed form —
+// "2023-1-05413" — but typing dashes is annoying, so this reformats
+// whatever the student types/pastes into that shape as they go. It
+// works off the raw digits every time rather than patching the
+// previous string, so deleting a digit right after a dash correctly
+// collapses the dash too, instead of leaving a stray "2023-" behind.
+function formatStudentNumber(raw: string): string {
+    const digits = raw.replace(/\D/g, '').slice(0, 10);
+    if (digits.length <= 4) return digits;
+    if (digits.length <= 5) return `${digits.slice(0, 4)}-${digits.slice(4)}`;
+    return `${digits.slice(0, 4)}-${digits.slice(4, 5)}-${digits.slice(5)}`;
+}
+
 // Shown on the Sign in button itself instead of (or as well as) a toast —
 // a toast disappears on its own after a few seconds, which is misleading
 // when the actual reason the student can't sign in (the rate limit) is
@@ -219,12 +232,32 @@ export function LoginPage() {
             <form onSubmit={handleFormSubmit} className="space-y-4">
                 <div className="space-y-2">
                     <Label htmlFor="studentNumber">Student ID Number</Label>
-                    <Input
+                                        <Input
                         id="studentNumber"
                         autoComplete="username"
-                        placeholder="e.g. 2023105413"
+                                                inputMode="numeric"
+                        placeholder="e.g. 2023-1-05413"
                         value={studentNumber}
-                        onChange={(event) => setStudentNumber(event.target.value)}
+                        onChange={(event) => setStudentNumber(formatStudentNumber(event.target.value))}
+                        onKeyDown={(event) => {
+                            // Allow navigation/editing keys and any
+                            // Ctrl/Cmd shortcut (e.g. Ctrl+A) through
+                            // untouched; block every other non-digit key
+                            // so letters/symbols never even flash in the
+                            // field before the formatter strips them.
+                            const allowedKeys = [
+                                'Backspace', 'Delete', 'Tab', 'Enter', 'Escape',
+                                'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+                                'Home', 'End',
+                            ];
+                            if (event.ctrlKey || event.metaKey || allowedKeys.includes(event.key)) {
+                                return;
+                            }
+                            if (!/^[0-9]$/.test(event.key)) {
+                                event.preventDefault();
+                            }
+                        }}
+                        onPaste={(event) => event.preventDefault()}
                         required
                     />
                 </div>

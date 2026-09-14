@@ -32,6 +32,7 @@ final class BuildEventRosterReport
      *                                  department by the caller;
      *                                  otherwise an optional narrowing
      *                                  filter.
+     * @param  string|null  $major  Optional narrowing filter.
      * @param  string|null  $yearLevel  Optional narrowing filter.
      * @param  string|null  $section  Optional narrowing filter.
      * @param  callable|null  $onGroupBuilt  Invoked once per
@@ -52,6 +53,7 @@ final class BuildEventRosterReport
     public function __invoke(
         EventModel $event,
         ?int $departmentId = null,
+        ?string $major = null,
         ?string $yearLevel = null,
         ?string $section = null,
         ?callable $onGroupBuilt = null,
@@ -75,6 +77,7 @@ final class BuildEventRosterReport
         $roster = Student::where('role', Role::Student)
             ->whereIn('department_id', $includedDepartmentIds)
             ->when($departmentId, fn ($q) => $q->where('department_id', $departmentId))
+            ->when(filled($major), fn ($q) => $q->where('major', $major))
             ->when(filled($yearLevel), fn ($q) => $q->where('year_level', $yearLevel))
             ->when(filled($section), fn ($q) => $q->where('section', $section))
             ->with('department')
@@ -111,9 +114,13 @@ final class BuildEventRosterReport
         ])->values()->all();
 
         $groups = $roster
+            // major is part of the key — otherwise e.g. BSBA-FM-1A and
+            // BSBA-MM-1A would collide into one group (see
+            // BuildMasterRosterReport, which shares this exact shape).
             ->groupBy(fn (Student $s) => sprintf(
-                '%s|%s|%s',
+                '%s|%s|%s|%s',
                 $s->department?->code ?? '—',
+                $s->major ?? '',
                 $s->year_level ?? '—',
                 $s->section ?? '—',
             ))
@@ -129,7 +136,7 @@ final class BuildEventRosterReport
                 return $group;
             })
             ->sortBy(fn (array $group) => sprintf(
-                '%s-%03d-%s', $group['department_code'], (int) $group['year_level'], $group['section'],
+                '%s-%s-%03d-%s', $group['department_code'], $group['major'] ?: '', (int) $group['year_level'], $group['section'],
             ))
             ->values()
             ->all();
@@ -156,7 +163,7 @@ final class BuildEventRosterReport
         Collection $excludedBySession,
         Collection $penaltyTotals,
     ): array {
-        [$deptCode, $yearLevel, $section] = explode('|', $key);
+        [$deptCode, $major, $yearLevel, $section] = explode('|', $key);
 
         $studentRows = $students
             ->map(fn (Student $student) => [
@@ -173,6 +180,7 @@ final class BuildEventRosterReport
 
         return [
             'department_code' => $deptCode,
+            'major' => $major !== '' ? $major : null,
             'year_level' => $yearLevel,
             'section' => $section,
             'students' => $studentRows,

@@ -17,6 +17,7 @@ class StartRosterReportGenerationRequest extends FormRequest
     {
         return [
             'department_id' => ['nullable', 'integer', 'exists:departments,id'],
+            'major' => ['nullable', 'string', 'max:50'],
             'year_level' => ['nullable', 'string', 'max:50'],
             'section' => ['nullable', 'string', 'max:50'],
             'format' => ['nullable', Rule::in(['xlsx', 'pdf'])],

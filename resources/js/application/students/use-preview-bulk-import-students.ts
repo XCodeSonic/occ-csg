@@ -9,6 +9,6 @@ import { httpStudentsRepository } from '@/infrastructure/students/students.repos
  */
 export function usePreviewBulkImportStudents() {
     return useMutation({
-        mutationFn: (file: File) => httpStudentsRepository.previewBulkImport(file),
+        mutationFn: (files: File[]) => httpStudentsRepository.previewBulkImport(files),
     });
 }

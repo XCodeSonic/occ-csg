@@ -21,6 +21,7 @@ class IndexStudentRequest extends FormRequest
             // controller (query scoping), not here.
             'department_id' => ['nullable', 'integer', 'exists:departments,id'],
             'role' => ['nullable', 'string', Rule::in(['system_admin', 'csg_admin', 'sc_admin', 'officer', 'student'])],
+            'major' => ['nullable', 'string', 'max:50'],
             'year_level' => ['nullable', 'string', 'max:20'],
             'section' => ['nullable', 'string', 'max:50'],
             // Matches against student_number, last_name, or first_name.

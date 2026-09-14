@@ -36,6 +36,10 @@ class StudentController extends Controller
             $query->where('role', $filters['role']);
         }
 
+        if (! empty($filters['major'])) {
+            $query->where('major', $filters['major']);
+        }
+
         if (! empty($filters['year_level'])) {
             $query->where('year_level', $filters['year_level']);
         }

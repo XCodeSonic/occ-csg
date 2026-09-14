@@ -197,7 +197,7 @@ it('filters the roster to a single department, year level, and section', functio
     rosterStudent('2023000014', 'BSBA', ['year_level' => '1', 'section' => 'A']);
     $bsit = rosterDept('BSIT');
 
-    $report = (new BuildEventRosterReport)($event, $bsit->id, '1', 'A');
+    $report = (new BuildEventRosterReport)($event, $bsit->id, null, '1', 'A');
 
     expect($report['groups'])->toHaveCount(1)
         ->and($report['groups'][0]['students'])->toHaveCount(1)

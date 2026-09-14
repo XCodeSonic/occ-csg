@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/application/auth/auth.store';
 import { useAcceptTerms } from '@/application/auth/use-accept-terms';
 import { httpAuthRepository } from '@/infrastructure/auth/auth.repository.http';
-import { Text } from '@/presentation/components/typography';
+// import { Text } from '@/presentation/components/typography';
 import { AuthLayout } from '@/presentation/layouts/auth-layout';
 import { LegalDocumentBody } from '@/presentation/components/legal/legal-document-body';
 import { PRIVACY_CONTENT, TERMS_CONTENT } from '@/presentation/components/legal/legal-content';

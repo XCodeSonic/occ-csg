@@ -41,6 +41,7 @@ class EventRosterReportController extends Controller
         $report = $buildEventRosterReport(
             $event,
             $departmentId,
+            $request->string('major')->value() ?: null,
             $request->string('year_level')->value() ?: null,
             $request->string('section')->value() ?: null,
         );

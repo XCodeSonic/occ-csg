@@ -38,7 +38,7 @@ interface HeadingProps extends ComponentPropsWithoutRef<'h1'> {
 }
 
 export function Heading({ level, as, className, ...props }: HeadingProps) {
-    const Tag = as ?? defaultTag[level];
+    const Tag = (as ?? defaultTag[level]) as any;
     return <Tag className={cn(headingStyles[level], className)} {...props} />;
 }
 
@@ -56,6 +56,6 @@ interface TextProps extends ComponentPropsWithoutRef<'p'> {
 }
 
 export function Text({ variant = 'body', as = 'p', className, ...props }: TextProps) {
-    const Tag = as;
+    const Tag = as as any;
     return <Tag className={cn(textStyles[variant], className)} {...props} />;
 }

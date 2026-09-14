@@ -75,7 +75,7 @@ final class MasterRosterGroupSheet implements FromArray, ShouldAutoSize, WithEve
 
     public function title(): string
     {
-        $title = trim(sprintf('%s %s%s', $this->group['department_code'], $this->group['year_level'], $this->group['section']));
+        $title = trim(sprintf('%s%s %s%s', $this->group['department_code'], $this->group['major'] ? '-'.$this->group['major'] : '', $this->group['year_level'], $this->group['section']));
 
         return substr($title !== '' ? $title : 'Group', 0, 31);
     }
@@ -291,7 +291,7 @@ final class MasterRosterGroupSheet implements FromArray, ShouldAutoSize, WithEve
     {
         $groupLabel = trim(sprintf(
             '%s — Year %s — Section %s',
-            $this->group['department_code'],
+            trim($this->group['department_code'].($this->group['major'] ? ' '.$this->group['major'] : '')),
             $this->group['year_level'] ?: '—',
             $this->group['section'] ?: '—',
         ));

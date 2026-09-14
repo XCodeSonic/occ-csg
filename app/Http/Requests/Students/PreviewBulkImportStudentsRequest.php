@@ -18,7 +18,8 @@ class PreviewBulkImportStudentsRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'file' => ['required', 'file', 'mimes:xlsx,xls,csv', 'max:5120'],
+            'files' => ['required', 'array', 'min:1', 'max:250'],
+            'files.*' => ['file', 'mimes:xlsx,xls,csv', 'max:5120'],
         ];
     }
 }

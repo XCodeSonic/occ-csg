@@ -4,6 +4,7 @@ import type { Role } from '@/domain/enums';
 export interface StudentFilters {
     departmentId?: number;
     role?: Role;
+    major?: string;
     yearLevel?: string;
     section?: string;
     search?: string;
@@ -26,17 +27,21 @@ export interface CreateStudentPayload {
     middleName: string;
     suffix?: string | null;
     departmentId: number;
+    major?: string | null;
     yearLevel: string;
     section?: string | null;
+    dateEnrolled?: string | null;
 }
 
 export interface BulkImportRowError {
+    filename: string;
     row: number;
     studentNumber: string | null;
     reasons: string[];
 }
 
 export interface BulkImportReport {
+    totalFiles: number;
     totalRows: number;
     imported: number;
     failed: number;
@@ -52,17 +57,32 @@ export interface BulkImportPreviewRow {
     lastName: string | null;
     firstName: string | null;
     middleName: string | null;
-    suffix: string | null;
+    dateEnrolled: string | null;
+}
+
+/**
+ * One uploaded file's preview — a file is one section (e.g.
+ * "BSBA-FM-1H.xlsx"), so a parse failure (bad filename, unknown
+ * department, unauthorized department) fails the whole file rather than
+ * any individual row.
+ */
+export interface BulkImportFilePreview {
+    filename: string;
+    valid: boolean;
+    parseError: string | null;
     departmentCode: string | null;
+    major: string | null;
     yearLevel: string | null;
     section: string | null;
+    rows: BulkImportPreviewRow[];
 }
 
 export interface BulkImportPreview {
+    totalFiles: number;
     totalRows: number;
     valid: number;
     invalid: number;
-    rows: BulkImportPreviewRow[];
+    files: BulkImportFilePreview[];
 }
 
 export interface UpdateStudentRolePayload {
@@ -80,12 +100,14 @@ export interface StudentRepository {
     list(filters: StudentFilters): Promise<PaginatedStudents>;
     create(payload: CreateStudentPayload): Promise<Student>;
     /**
-     * Validates a file and reports what importing it would do, row by
-     * row — nothing is written to the database. Call this first; only
-     * call bulkImport() with the same file once the admin confirms.
+     * Validates a batch of section files (one per section, e.g.
+     * "BSBA-FM-1H.xlsx") and reports what importing them would do, file
+     * by file and row by row — nothing is written to the database. Call
+     * this first; only call bulkImport() with the same files once the
+     * admin confirms.
      */
-    previewBulkImport(file: File): Promise<BulkImportPreview>;
-    bulkImport(file: File): Promise<BulkImportReport>;
+    previewBulkImport(files: File[]): Promise<BulkImportPreview>;
+    bulkImport(files: File[]): Promise<BulkImportReport>;
     downloadBulkImportTemplate(): Promise<Blob>;
     updateRole(studentId: number, payload: UpdateStudentRolePayload): Promise<Student>;
     getQrCode(studentId: number): Promise<Blob>;

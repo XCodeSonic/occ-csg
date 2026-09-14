@@ -41,7 +41,7 @@
 @forelse ($report['groups'] as $group)
     <div class="group">
         <div class="banner"><h1>Master Roster Report — {{ $eventNames }}</h1></div>
-        <div class="subtitle">{{ trim($group['department_code'].' — Year '.($group['year_level'] ?: '—').' — Section '.($group['section'] ?: '—')) }}</div>
+        <div class="subtitle">{{ trim(trim($group['department_code'].(($group['major'] ?? null) ? ' '.$group['major'] : '')).' — Year '.($group['year_level'] ?: '—').' — Section '.($group['section'] ?: '—')) }}</div>
         <div class="meta">
             Generated {{ now()->format('M j, Y g:i A') }} •
             {{ count($group['students']) }} student{{ count($group['students']) === 1 ? '' : 's' }} •

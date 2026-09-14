@@ -39,6 +39,7 @@ final class BuildMasterRosterReport
     public function __invoke(
         iterable $events,
         ?int $departmentId = null,
+        ?string $major = null,
         ?string $yearLevel = null,
         ?string $section = null,
         ?callable $onGroupBuilt = null,
@@ -53,6 +54,7 @@ final class BuildMasterRosterReport
 
         $roster = Student::where('role', Role::Student)
             ->when($departmentId, fn ($q) => $q->where('department_id', $departmentId))
+            ->when(filled($major), fn ($q) => $q->where('major', $major))
             ->when(filled($yearLevel), fn ($q) => $q->where('year_level', $yearLevel))
             ->when(filled($section), fn ($q) => $q->where('section', $section))
             ->with('department')
@@ -80,9 +82,13 @@ final class BuildMasterRosterReport
             ->map(fn (Collection $penalties) => (float) $penalties->sum('amount'));
 
         $groups = $roster
+            // See BuildEventRosterReport for why major is part of the key
+            // — otherwise e.g. BSBA-FM-1A and BSBA-MM-1A would collide
+            // into one group.
             ->groupBy(fn (Student $s) => sprintf(
-                '%s|%s|%s',
+                '%s|%s|%s|%s',
                 $s->department?->code ?? '—',
+                $s->major ?? '',
                 $s->year_level ?? '—',
                 $s->section ?? '—',
             ))
@@ -98,7 +104,7 @@ final class BuildMasterRosterReport
                 return $group;
             })
             ->sortBy(fn (array $group) => sprintf(
-                '%s-%03d-%s', $group['department_code'], (int) $group['year_level'], $group['section'],
+                '%s-%s-%03d-%s', $group['department_code'], $group['major'] ?: '', (int) $group['year_level'], $group['section'],
             ))
             ->values()
             ->all();
@@ -152,7 +158,7 @@ final class BuildMasterRosterReport
         Collection $excludedBySession,
         Collection $penaltyTotals,
     ): array {
-        [$deptCode, $yearLevel, $section] = explode('|', $key);
+        [$deptCode, $major, $yearLevel, $section] = explode('|', $key);
 
         $studentRows = $students
             ->map(fn (Student $student) => [
@@ -169,6 +175,7 @@ final class BuildMasterRosterReport
 
         return [
             'department_code' => $deptCode,
+            'major' => $major !== '' ? $major : null,
             'year_level' => $yearLevel,
             'section' => $section,
             'students' => $studentRows,
