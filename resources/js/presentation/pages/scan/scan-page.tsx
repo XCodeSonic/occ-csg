@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { BrowserQRCodeReader } from '@zxing/browser';
 import type { IScannerControls } from '@zxing/browser';
-import { AlertTriangle, CheckCircle2, ScanLine, X, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Loader2, ScanLine, X, XCircle } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -188,6 +188,11 @@ function Scanner({
     const [feedback, setFeedback] = useState<Feedback | null>(null);
     const [recent, setRecent] = useState<ScanResult[]>(() => loadStoredRecent(session.id));
     const [cameraError, setCameraError] = useState<string | null>(null);
+    // Mirrors isProcessingRef into render state purely so the UI can show a
+    // "Processing…" status. The ref is what the decode loop actually reads
+    // (it needs a value it can check synchronously inside a callback that
+    // was set up once at mount) — this state is just for display.
+    const [isProcessing, setIsProcessing] = useState(false);
 
     const showFeedback = useCallback(
         (next: Feedback) => {
@@ -234,14 +239,17 @@ function Scanner({
 
             cooldownRef.current.set(token, now);
             isProcessingRef.current = true;
+            setIsProcessing(true);
 
             scanAttendanceRef.current.mutate(token, {
                 onSuccess: (result) => {
                     isProcessingRef.current = false;
+                    setIsProcessing(false);
                     showFeedback({ kind: 'success', result });
                 },
                 onError: (error) => {
                     isProcessingRef.current = false;
+                    setIsProcessing(false);
                     showFeedback({
                         kind: 'error',
                         message: error instanceof ScanError ? error.message : 'Scan failed — try again.',
@@ -260,9 +268,29 @@ function Scanner({
                         'Camera access requires a secure connection (HTTPS). Ask an admin to enable HTTPS for this site.',
                     );
                 }
-                // deviceId left undefined: zxing auto-prefers the
-                // environment-facing (back) camera when one is available.
-                const scannerControls = await codeReader.decodeFromVideoDevice(undefined, video, (result) => {
+                // decodeFromVideoDevice(undefined, ...) requests the camera
+                // with NO resolution constraints, so phones hand back their
+                // native photo resolution (often 3000px+ on the long edge).
+                // zxing re-decodes that full-size frame ~5x/sec, and on
+                // mid-range Android hardware that alone is what stretches
+                // "detect one QR" out to several seconds — it's CPU-bound
+                // decode time, not the network (the network call only
+                // happens once a code is already decoded, in handleDecoded
+                // below). Capping the capture to a sane size keeps every
+                // decode attempt fast without hurting read range at normal
+                // scanning distance. continuous focus mode is requested
+                // where supported so held-up badges snap into focus instead
+                // of feeding zxing several blurry, undecodable frames first.
+                const constraints: MediaStreamConstraints = {
+                    video: {
+                        facingMode: 'environment',
+                        width: { ideal: 960, max: 1280 },
+                        height: { ideal: 960, max: 1280 },
+                        advanced: [{ focusMode: 'continuous' } as MediaTrackConstraintSet],
+                    },
+                    audio: false,
+                };
+                const scannerControls = await codeReader.decodeFromConstraints(constraints, video, (result) => {
                     if (!result || cancelled) return;
                     handleDecoded(result.getText());
                 });
@@ -330,8 +358,34 @@ function Scanner({
                 <video ref={videoRef} className="size-full object-cover" muted playsInline autoPlay />
 
                 {!feedback && !cameraError && (
-                    <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                        <div className="size-56 rounded-2xl border-2 border-white/60" />
+                    <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-4">
+                        <div
+                            className={cn(
+                                'size-56 rounded-2xl border-2 transition-colors duration-200',
+                                isProcessing ? 'border-amber-400/80' : 'border-white/60',
+                            )}
+                        />
+                        {/* Status pill: this is the "what's happening" cue —
+                            without it, an officer who scans a second badge
+                            while the first is still being posted to the
+                            server just sees nothing happen and assumes the
+                            scanner missed it, so they try again (or worse,
+                            think the first scan never went through). */}
+                        <div
+                            className={cn(
+                                'flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium text-white transition-colors duration-200',
+                                isProcessing ? 'bg-amber-500/90' : 'bg-black/50',
+                            )}
+                        >
+                            {isProcessing ? (
+                                <>
+                                    <Loader2 className="size-3.5 animate-spin" />
+                                    Processing scan…
+                                </>
+                            ) : (
+                                'Ready to scan'
+                            )}
+                        </div>
                     </div>
                 )}
 
@@ -365,7 +419,9 @@ function Scanner({
             </div>
 
             <Text variant="caption" className="text-center">
-                Hold each student's QR code steady in the frame, then confirm the photo matches their face.
+                {isProcessing
+                    ? 'Recording the last scan — the next code will be read automatically once this finishes.'
+                    : "Hold each student's QR code steady in the frame, then confirm the photo matches their face."}
             </Text>
 
             {recent.length > 0 && (
