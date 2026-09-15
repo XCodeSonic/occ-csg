@@ -593,7 +593,7 @@ function ScoreHero({ value, tier, eyebrow, caption }: { value: number | null; ti
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-            className="rounded-3xl border bg-card shadow-sm"
+            className="rounded-3xl border bg-card"
         >
             <div className="overflow-hidden rounded-[inherit] p-6">
                 <div className="flex flex-col items-center gap-4 text-center">
