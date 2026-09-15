@@ -3,8 +3,18 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { CalendarDays, CalendarPlus, FileBarChart, Lock, Radio, SearchX } from 'lucide-react';
 import { toast } from 'sonner';
 
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -43,6 +53,7 @@ export function EventDetailPage() {
 
     const [isCreatingDay, setIsCreatingDay] = useState(false);
     const [dayForm, setDayForm] = useState<DayFormValues>(EMPTY_DAY_FORM);
+    const [isEndEventDialogOpen, setIsEndEventDialogOpen] = useState(false);
 
     const event = events?.find((candidate) => candidate.id === Number(eventId));
     const createEventDay = useCreateEventDay(Number(eventId));
@@ -66,12 +77,8 @@ export function EventDetailPage() {
     // after the server rejects it.
     const ongoingSessionId = sortedDays.flatMap((day) => day.sessions).find((session) => session.status === SessionStatus.Ongoing)?.id ?? null;
 
-    function handleEndEvent() {
+    function confirmEndEvent() {
         if (!event) return;
-
-        if (!window.confirm('End this event? Any still-ongoing session will be ended automatically too.')) {
-            return;
-        }
 
         endEvent.mutate(event.id, {
             onSuccess: (result) => {
@@ -132,7 +139,7 @@ export function EventDetailPage() {
     const hasOngoingSession = ongoingSessionId !== null;
 
     return (
-        <div className="mx-auto max-w-2xl space-y-6">
+        <div className="mx-auto max-w-2xl space-y-8">
             {/*
               The event header became a card: a tile that's lit while a
               session is actually running, the name, and the status badge.
@@ -140,8 +147,8 @@ export function EventDetailPage() {
               which made "is anything happening right now" a question you
               had to answer by scrolling into the day list.
             */}
-            <div className={cn('rounded-3xl border bg-card p-5', hasOngoingSession && TONE.emerald.wash)}>
-                <div className="flex items-start gap-3.5">
+            <div className={cn('rounded-3xl border bg-card p-6', hasOngoingSession && TONE.emerald.wash)}>
+                <div className="flex items-start gap-4">
                     <Tile
                         tone={hasOngoingSession ? 'emerald' : isEventEnded ? 'neutral' : 'sky'}
                         size="lg"
@@ -159,7 +166,7 @@ export function EventDetailPage() {
                         </div>
                         {event.description && <Text variant="small">{event.description}</Text>}
                         {hasOngoingSession && (
-                            <Text variant="caption" className={cn('mt-1 font-medium', TONE.emerald.text)}>
+                            <Text variant="caption" className={cn('mt-2 font-medium', TONE.emerald.text)}>
                                 A session is open for scanning right now.
                             </Text>
                         )}
@@ -170,13 +177,13 @@ export function EventDetailPage() {
                 {(REPORT_ROLES.includes(student.role) || (canManage && !isEventEnded)) && (
                     <div className="mt-4 flex flex-wrap gap-2">
                         {REPORT_ROLES.includes(student.role) && (
-                            <Button size="sm" variant="outline" className="gap-1.5" onClick={() => navigate(`/events/${event.id}/report`)}>
+                            <Button size="sm" variant="outline" className="gap-2" onClick={() => navigate(`/events/${event.id}/report`)}>
                                 <FileBarChart className="size-4" />
                                 Reports
                             </Button>
                         )}
                         {canManage && !isEventEnded && (
-                            <Button size="sm" variant="destructive" onClick={handleEndEvent} disabled={endEvent.isPending}>
+                            <Button size="sm" variant="destructive" onClick={() => setIsEndEventDialogOpen(true)} disabled={endEvent.isPending}>
                                 {endEvent.isPending ? 'Ending…' : 'End event'}
                             </Button>
                         )}
@@ -184,7 +191,7 @@ export function EventDetailPage() {
                 )}
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-4">
                 <SectionHeader Icon={CalendarDays} tone="sky">
                     Days
                 </SectionHeader>
@@ -226,9 +233,9 @@ export function EventDetailPage() {
                     !isEventEnded &&
                     (isCreatingDay ? (
                         <Card>
-                            <CardContent className="pt-6">
+                            <CardContent>
                                 <form onSubmit={handleCreateDay} className="space-y-4">
-                                    <div className="flex items-center gap-2.5">
+                                    <div className="flex items-center gap-2">
                                         <Tile tone="sky" size="sm" variant="soft" Icon={CalendarPlus} />
                                         <Text variant="small" className="font-medium text-foreground">
                                             New day
@@ -292,6 +299,23 @@ export function EventDetailPage() {
                         </button>
                     ))}
             </div>
+
+            <AlertDialog open={isEndEventDialogOpen} onOpenChange={setIsEndEventDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>End this event?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Any still-ongoing session will be ended automatically too. This can't be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={confirmEndEvent} className={buttonVariants({ variant: 'destructive' })}>
+                            Yes, end event
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

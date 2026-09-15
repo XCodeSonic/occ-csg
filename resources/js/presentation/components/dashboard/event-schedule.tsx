@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import type { EventWithDays } from '@/domain/entities';
 import { AttendanceStatus, CHECK_TYPE_LABEL, SessionStatus, WINDOW_TYPE_LABEL, type WindowType } from '@/domain/enums';
 import { cn, formatDate, formatTimeOfDay } from '@/lib/utils';
+import { CARD, CHIP, GAP, STACK, TAP_SM } from '@/presentation/components/spacing';
 import { AnimatedCounter } from '@/presentation/components/dashboard/animated-counter';
 import { Tile } from '@/presentation/components/tile';
 import { TONE, type Tone } from '@/presentation/components/tone';
@@ -78,13 +79,13 @@ export function EventSchedule({
     const hasOngoingSession = days.some((day) => day.sessions.some((session) => session.status === SessionStatus.Ongoing));
 
     return (
-        <div className="rounded-3xl border bg-card p-5">
-            <div className="flex items-center justify-between gap-3">
+        <div className={cn('rounded-3xl border bg-card', CARD.pad)}>
+            <div className={cn('flex items-center justify-between', GAP.grid)}>
                 <Link to={`/events/${event.id}`} className="min-w-0 truncate text-h3 font-semibold hover:underline">
                     {event.name}
                 </Link>
                 {hasOngoingSession && (
-                    <Badge variant="secondary" className={cn('shrink-0 gap-1 border-transparent', TONE.emerald.chip)}>
+                    <Badge variant="secondary" className={cn('shrink-0 gap-2 border-transparent', TONE.emerald.chip)}>
                         <Radio className="size-3" />
                         Live
                     </Badge>
@@ -92,7 +93,7 @@ export function EventSchedule({
             </div>
 
             {days.length > 0 && (
-                <div className="mt-4 flex gap-1.5 overflow-x-auto pb-1">
+                <div className={cn('mt-4 flex overflow-x-auto pb-2', GAP.iconText)}>
                     {days.map((day, index) => {
                         const isSelected = index === selectedDayIndex;
 
@@ -103,7 +104,12 @@ export function EventSchedule({
                                 onClick={() => setSelectedDayIndex(index)}
                                 aria-pressed={isSelected}
                                 className={cn(
-                                    'shrink-0 rounded-full px-3.5 py-1.5 text-caption font-medium whitespace-nowrap transition-colors',
+                                    // 40px tall, 16px of horizontal padding. These are
+                                    // secondary controls, so they take the 40px step rather
+                                    // than the 48px one a primary button gets — still a
+                                    // real tap target, still on the scale.
+                                    TAP_SM,
+                                    'shrink-0 rounded-full px-4 text-caption font-medium whitespace-nowrap transition-colors',
                                     isSelected
                                         ? // The selected day is the one lit element in this strip, on
                                           // the same glow the tiles use.
@@ -119,7 +125,7 @@ export function EventSchedule({
             )}
 
             {selectedDay && (
-                <div className="mt-3 space-y-2">
+                <div className={cn('mt-4', STACK.label)}>
                     <Text variant="caption">{formatDate(selectedDay.date)}</Text>
 
                     {selectedDay.sessions.length === 0 && <Text variant="small">No sessions scheduled for this day yet.</Text>}
@@ -134,9 +140,12 @@ export function EventSchedule({
                             <motion.div
                                 key={session.id}
                                 layout
-                                className={cn('rounded-2xl border px-3 py-2.5', isLive && TONE.emerald.wash)}
+                                // 8px top and bottom around a 32px tile puts this row at
+                                // exactly 48px — the tap-target height, and the same
+                                // height every other list row in the app now lands on.
+                                className={cn('rounded-2xl border px-4 py-2', isLive && TONE.emerald.wash)}
                             >
-                                <div className="flex items-center gap-3">
+                                <div className={cn('flex items-center', GAP.grid)}>
                                     <Tile
                                         tone={windowStyle.tone}
                                         size="sm"
@@ -153,26 +162,21 @@ export function EventSchedule({
                                             {formatTimeOfDay(session.startTime)}–{formatTimeOfDay(session.endTime)}
                                         </Text>
                                     </div>
-                                    <span
-                                        className={cn(
-                                            'flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-caption font-medium',
-                                            TONE[statusContent.tone].chip,
-                                        )}
-                                    >
-                                        <span className={cn('size-1.5 rounded-full', TONE[statusContent.tone].dot)} />
+                                    <span className={cn(CHIP, TONE[statusContent.tone].chip)}>
+                                        <span className={cn('size-2 rounded-full', TONE[statusContent.tone].dot)} />
                                         {statusContent.label}
                                     </span>
                                 </div>
 
                                 {isTheActiveSession && adminLiveCounts && (
-                                    <div className="mt-2.5 border-t pt-2.5">
-                                        <div className="flex items-end gap-1.5">
+                                    <div className="mt-2 border-t pt-2">
+                                        <div className={cn('flex items-end', GAP.iconText)}>
                                             <span className="text-h3 leading-none font-semibold tabular-nums text-foreground">
                                                 <AnimatedCounter value={adminLiveCounts.present} />
                                             </span>
                                             <Text variant="caption">of {adminLiveCounts.totalStudents} present so far</Text>
                                         </div>
-                                        <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                                        <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
                                             <motion.div
                                                 initial={{ width: 0 }}
                                                 animate={{
@@ -186,14 +190,9 @@ export function EventSchedule({
                                 )}
 
                                 {isTheActiveSession && studentStatus && (
-                                    <div className="mt-2.5 flex items-center justify-between border-t pt-2.5">
+                                    <div className="mt-2 flex items-center justify-between border-t pt-2">
                                         {ATTENDANCE_STATUS_CHIP[studentStatus] ? (
-                                            <span
-                                                className={cn(
-                                                    'rounded-full px-2.5 py-1 text-caption font-medium',
-                                                    TONE[ATTENDANCE_STATUS_CHIP[studentStatus]!.tone].chip,
-                                                )}
-                                            >
+                                            <span className={cn(CHIP, TONE[ATTENDANCE_STATUS_CHIP[studentStatus]!.tone].chip)}>
                                                 {ATTENDANCE_STATUS_CHIP[studentStatus]!.label}
                                             </span>
                                         ) : (
@@ -213,7 +212,7 @@ export function EventSchedule({
 /** Shown instead of EventSchedule when nothing is currently open — same quiet-state visual language as the rest of the dashboard. */
 export function NoActiveEventCard() {
     return (
-        <div className="flex items-center gap-3 rounded-3xl border bg-card p-5">
+        <div className={cn('flex items-center rounded-3xl border bg-card', GAP.grid, CARD.pad)}>
             <Tile tone="neutral" variant="soft" Icon={Clock} />
             <div>
                 <Text variant="small" className="font-medium text-foreground">

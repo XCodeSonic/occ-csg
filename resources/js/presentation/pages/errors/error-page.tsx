@@ -26,7 +26,7 @@ export function ErrorPage() {
                 <Text variant="small" className="max-w-xs break-words">
                     {message}
                 </Text>
-                <Button asChild className="mt-1">
+                <Button asChild className="mt-2">
                     <Link to="/dashboard">Back to dashboard</Link>
                 </Button>
             </div>

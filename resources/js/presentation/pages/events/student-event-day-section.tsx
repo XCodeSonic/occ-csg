@@ -25,8 +25,8 @@ const WINDOW_STYLE: Record<string, { Icon: LucideIcon; tone: Tone }> = {
 
 export function StudentEventDaySection({ day }: { day: MyAttendanceDay }) {
     return (
-        <div className="space-y-3 rounded-3xl border border-border bg-card p-4">
-            <div className="flex items-center gap-2.5">
+        <div className="space-y-4 rounded-3xl border border-border bg-card p-4">
+            <div className="flex items-center gap-2">
                 <Tile tone="sky" size="sm" variant="soft" Icon={CalendarDays} />
                 <div className="min-w-0">
                     <Text variant="small" className="font-medium text-foreground">
@@ -51,10 +51,10 @@ export function StudentEventDaySection({ day }: { day: MyAttendanceDay }) {
                     return (
                         <div
                             key={session.id}
-                            className={cn('space-y-2 rounded-2xl border border-border p-3', needsScan && TONE.violet.wash)}
+                            className={cn('space-y-2 rounded-2xl border border-border p-4', needsScan && TONE.violet.wash)}
                         >
-                            <div className="flex items-start justify-between gap-3">
-                                <div className="flex min-w-0 items-center gap-3">
+                            <div className="flex items-start justify-between gap-4">
+                                <div className="flex min-w-0 items-center gap-4">
                                     <Tile tone={windowStyle.tone} variant={isOngoing ? 'solid' : 'soft'} Icon={windowStyle.Icon} />
                                     <div className="min-w-0">
                                         <Text variant="small" className="font-medium text-foreground">
@@ -67,7 +67,7 @@ export function StudentEventDaySection({ day }: { day: MyAttendanceDay }) {
                                 </div>
 
                                 {session.attendanceStatus && (
-                                    <div className="flex shrink-0 flex-col items-end gap-1">
+                                    <div className="flex shrink-0 flex-col items-end gap-2">
                                         <Badge variant="secondary" className={ATTENDANCE_STATUS_BADGE_CLASS[session.attendanceStatus]}>
                                             {ATTENDANCE_STATUS_LABEL[session.attendanceStatus]}
                                         </Badge>
@@ -84,11 +84,11 @@ export function StudentEventDaySection({ day }: { day: MyAttendanceDay }) {
                               quiet outline off to the side.
                             */}
                             {needsScan && (
-                                <div className="flex items-center justify-between gap-3 rounded-xl bg-card p-2.5">
+                                <div className="flex items-center justify-between gap-4 rounded-xl bg-card p-2">
                                     <Text variant="caption" className="min-w-0">
                                         Open now — show your QR to the attendance committee.
                                     </Text>
-                                    <Button asChild size="sm" className="shrink-0 gap-1.5">
+                                    <Button asChild size="sm" className="shrink-0 gap-2">
                                         <Link to="/profile">
                                             <QrCode className="size-4" />
                                             My QR

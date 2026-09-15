@@ -25,9 +25,9 @@ function randomDelay() {
 
 export function PoweredByLogos() {
     return (
-        <div className="space-y-3 pt-2 text-center">
+        <div className="space-y-4 pt-2 text-center">
             <Text variant="caption">Powered by</Text>
-            <div className="flex flex-wrap items-center justify-center gap-3">
+            <div className="flex flex-wrap items-center justify-center gap-4">
                 {POWERED_BY_LOGOS.map((logo) => (
                     <ShimmerLogo key={logo.alt} src={logo.src} alt={logo.alt} delaySeconds={randomDelay()} />
                 ))}

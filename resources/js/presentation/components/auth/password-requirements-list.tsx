@@ -25,8 +25,8 @@ export function PasswordRequirementsList({ password, className }: PasswordRequir
     const label = password.length > 0 ? passwordStrengthLabel(metCount, total) : null;
 
     return (
-        <div className={cn('space-y-3 rounded-md border border-border bg-muted/30 p-3', className)}>
-            <div className="space-y-1.5">
+        <div className={cn('space-y-4 rounded-md border border-border bg-muted/30 p-4', className)}>
+            <div className="space-y-2">
                 <div className="flex items-center justify-between text-xs">
                     <span className="font-medium text-muted-foreground">Password strength</span>
                     {label ? <span className="font-medium text-foreground">{label}</span> : null}
@@ -44,7 +44,7 @@ export function PasswordRequirementsList({ password, className }: PasswordRequir
                     All requirements met
                 </p>
             ) : (
-                <ul className="space-y-1.5">
+                <ul className="space-y-2">
                     {results.map((requirement) => (
                         <li
                             key={requirement.id}

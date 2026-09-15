@@ -45,6 +45,7 @@ import { EventSchedule, NoActiveEventCard } from '@/presentation/components/dash
 import { RadialGauge, SegmentedRing } from '@/presentation/components/dashboard/gauges';
 import { Leaderboard, type LeaderboardEntry } from '@/presentation/components/dashboard/leaderboard';
 import { Glow, StatTile, Tile } from '@/presentation/components/tile';
+import { CARD, CHIP, GAP, SPACE, STACK, TAP, ROW } from '@/presentation/components/spacing';
 import { DEPARTMENT_TONES, TONE, type Tone } from '@/presentation/components/tone';
 
 function isOfficerSummary(summary: DashboardSummary): summary is OfficerDashboardSummary {
@@ -71,7 +72,10 @@ export function DashboardPage() {
     if (!student) return null;
 
     return (
-        <div className="space-y-6">
+        // Every gap on this page is a multiple of 8 (see spacing.ts): 32px
+        // between sections, 16px between components inside one, 8px between
+        // a label and what it labels.
+        <div className={STACK.section}>
             <div>
                 <Heading level="h1">Dashboard</Heading>
                 <Text variant="small">{subtitleFor(data)}</Text>
@@ -80,8 +84,8 @@ export function DashboardPage() {
             {isLoading && <DashboardSkeleton />}
 
             {isError && (
-                <Card className={cn('border', TONE.red.wash)}>
-                    <CardContent className="flex items-center gap-3 pt-6">
+                <Card className={cn('border', CARD.root, TONE.red.wash)}>
+                    <CardContent className={cn(CARD.inset, 'flex items-center', GAP.grid)}>
                         <Tile tone="red" Icon={AlertTriangle} variant="soft" />
                         <div>
                             <Text variant="small" className="font-medium text-foreground">
@@ -114,9 +118,9 @@ function subtitleFor(data: DashboardSummary | undefined): string {
  */
 function DashboardSkeleton() {
     return (
-        <div className="space-y-4" aria-hidden>
+        <div className={STACK.group} aria-hidden>
             <div className="h-64 animate-pulse rounded-3xl bg-muted" />
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className={cn('grid grid-cols-2 sm:grid-cols-4', GAP.grid)}>
                 {[0, 1, 2, 3].map((index) => (
                     <div key={index} className="h-20 animate-pulse rounded-2xl bg-muted" />
                 ))}
@@ -205,7 +209,7 @@ function StudentDashboard({ summary }: { summary: StudentDashboardSummary }) {
     ];
 
     return (
-        <motion.div variants={container} initial="hidden" animate="show" className="space-y-6">
+        <motion.div variants={container} initial="hidden" animate="show" className={STACK.section}>
             <motion.div variants={item}>
                 <ScoreHero
                     value={rate}
@@ -216,10 +220,19 @@ function StudentDashboard({ summary }: { summary: StudentDashboardSummary }) {
                             ? `Present or late for ${present + late} of ${tracked} tracked sessions`
                             : 'Nothing tracked yet — check back after your first session.'
                     }
+                    segments={
+                        tracked > 0
+                            ? [
+                                  { value: present, tone: 'emerald' },
+                                  { value: late, tone: 'amber' },
+                                  { value: absent, tone: 'red' },
+                              ]
+                            : undefined
+                    }
                 />
             </motion.div>
 
-            <motion.div variants={item} className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <motion.div variants={item} className={cn('grid grid-cols-2 sm:grid-cols-4', GAP.grid)}>
                 {stats.map((stat) => (
                     <StatTile key={stat.status} label={statusLabel(stat.status)} value={stat.value} Icon={stat.Icon} tone={stat.tone} />
                 ))}
@@ -236,22 +249,29 @@ function StudentDashboard({ summary }: { summary: StudentDashboardSummary }) {
                 </motion.div>
             ))}
 
-            <motion.div variants={item} className="space-y-2">
+            {/* 8px from the label to its content, 16px between the cards inside
+                it — so the label reads as belonging to the group rather than
+                floating equidistant between two of them. */}
+            <motion.div variants={item} className={STACK.label}>
                 <SectionLabel Icon={CalendarDays} tone="sky">
                     Event schedule
                 </SectionLabel>
-                {isActiveEventsLoading && <Text variant="small">Loading…</Text>}
-                {!isActiveEventsLoading && activeEvents.length === 0 && <NoActiveEventCard />}
-                {activeEvents.map((event) => (
-                    <EventSchedule
-                        key={event.id}
-                        event={event}
-                        activeSessionId={summary.activeSession?.eventId === event.id ? summary.activeSession.sessionId : null}
-                        studentStatus={
-                            summary.activeSession?.eventId === event.id ? (summary.activeSessionStatus ?? AttendanceStatus.Pending) : null
-                        }
-                    />
-                ))}
+                <div className={STACK.group}>
+                    {isActiveEventsLoading && <Text variant="small">Loading…</Text>}
+                    {!isActiveEventsLoading && activeEvents.length === 0 && <NoActiveEventCard />}
+                    {activeEvents.map((event) => (
+                        <EventSchedule
+                            key={event.id}
+                            event={event}
+                            activeSessionId={summary.activeSession?.eventId === event.id ? summary.activeSession.sessionId : null}
+                            studentStatus={
+                                summary.activeSession?.eventId === event.id
+                                    ? (summary.activeSessionStatus ?? AttendanceStatus.Pending)
+                                    : null
+                            }
+                        />
+                    ))}
+                </div>
             </motion.div>
         </motion.div>
     );
@@ -266,7 +286,7 @@ function OfficerDashboard({ summary }: { summary: OfficerDashboardSummary }) {
     const tier = contributionTier(summary.contributionPercentage, summary.totalScans);
 
     return (
-        <motion.div variants={container} initial="hidden" animate="show" className="space-y-6">
+        <motion.div variants={container} initial="hidden" animate="show" className={STACK.section}>
             <motion.div variants={item}>
                 <ScoreHero
                     value={summary.totalScans > 0 ? summary.contributionPercentage : null}
@@ -276,23 +296,26 @@ function OfficerDashboard({ summary }: { summary: OfficerDashboardSummary }) {
                 />
             </motion.div>
 
-            <motion.div variants={item} className="grid grid-cols-2 gap-3">
+            <motion.div variants={item} className={cn('grid grid-cols-2', GAP.grid)}>
                 <StatTile label="Your scans" value={summary.myScans} Icon={ScanLine} tone="violet" variant="solid" />
                 <StatTile label="Everyone else" value={others} Icon={Users} tone="neutral" />
             </motion.div>
 
             <motion.div variants={item}>
-                <Card>
-                    <CardHeader className="gap-1 pb-2">
+                <Card className={CARD.root}>
+                    {/* No pb- override: Card's own 16/24px header-to-content gap
+                        is already the right step, and hand-tuning it per card is
+                        how the old 12px/10px values crept in. */}
+                    <CardHeader className={CARD.inset}>
                         <CardDescription>You vs. everyone else</CardDescription>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className={CARD.inset}>
                         <SplitBar mineLabel="You" mine={summary.myScans} othersLabel="Other officers" others={others} />
                     </CardContent>
                 </Card>
             </motion.div>
 
-            <motion.div variants={item} className="space-y-2">
+            <motion.div variants={item} className={STACK.label}>
                 <SectionLabel Icon={Radio} tone="emerald">
                     Current session
                 </SectionLabel>
@@ -326,39 +349,43 @@ function AdminDashboard({ summary, role }: { summary: Extract<DashboardSummary, 
     }));
 
     return (
-        <motion.div variants={container} initial="hidden" animate="show" className="space-y-6">
-            <motion.div variants={item} className="space-y-2">
+        <motion.div variants={container} initial="hidden" animate="show" className={STACK.section}>
+            <motion.div variants={item} className={STACK.label}>
                 <SectionLabel Icon={CalendarDays} tone="sky">
                     Event schedule
                 </SectionLabel>
-                {isActiveEventsLoading && <Text variant="small">Loading…</Text>}
-                {!isActiveEventsLoading && activeEvents.length === 0 && (
-                    <QuietHero
-                        totalStudents={summary.totalStudents}
-                        eventsCount={summary.eventsCount}
-                        departmentsCount={summary.attendanceByDepartment.length}
-                    />
-                )}
-                {activeEvents.map((event) => (
-                    <EventSchedule
-                        key={event.id}
-                        event={event}
-                        activeSessionId={summary.activeSession?.eventId === event.id ? summary.activeSession.sessionId : null}
-                        adminLiveCounts={summary.activeSession?.eventId === event.id ? summary.activeSessionCounts : null}
-                    />
-                ))}
+                <div className={STACK.group}>
+                    {isActiveEventsLoading && <Text variant="small">Loading…</Text>}
+                    {!isActiveEventsLoading && activeEvents.length === 0 && (
+                        <QuietHero
+                            totalStudents={summary.totalStudents}
+                            eventsCount={summary.eventsCount}
+                            departmentsCount={summary.attendanceByDepartment.length}
+                        />
+                    )}
+                    {activeEvents.map((event) => (
+                        <EventSchedule
+                            key={event.id}
+                            event={event}
+                            activeSessionId={summary.activeSession?.eventId === event.id ? summary.activeSession.sessionId : null}
+                            adminLiveCounts={summary.activeSession?.eventId === event.id ? summary.activeSessionCounts : null}
+                        />
+                    ))}
+                </div>
             </motion.div>
 
             <motion.div variants={item}>
-                <Card className="overflow-hidden">
-                    <CardHeader className="gap-1 pb-2">
+                <Card className={cn('overflow-hidden', CARD.root)}>
+                    <CardHeader className={CARD.inset}>
                         <CardDescription>Attendance across all events</CardDescription>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className={CARD.inset}>
                         <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-center sm:justify-around">
+                            {/* 144, not 148 — a ring is a box like anything else, and
+                                an odd diameter can't be centred on the grid. */}
                             <SegmentedRing
-                                size={148}
-                                strokeWidth={16}
+                                size={SPACE.sm * 9}
+                                strokeWidth={SPACE.sm}
                                 segments={[
                                     { value: present, className: TONE.emerald.stroke },
                                     { value: late, className: TONE.amber.stroke },
@@ -371,7 +398,7 @@ function AdminDashboard({ summary, role }: { summary: Extract<DashboardSummary, 
                                 <span className="text-caption text-muted-foreground">tracked</span>
                             </SegmentedRing>
 
-                            <div className="grid w-full gap-2.5 sm:w-auto sm:min-w-56">
+                            <div className={cn('grid w-full sm:w-auto sm:min-w-56', GAP.grid)}>
                                 <StatTile label="Present" value={present} Icon={CheckCircle2} tone="emerald" variant="solid" />
                                 <StatTile label="Late" value={late} Icon={Clock} tone="amber" />
                                 <StatTile label="Absent" value={absent} Icon={XCircle} tone="red" />
@@ -381,19 +408,21 @@ function AdminDashboard({ summary, role }: { summary: Extract<DashboardSummary, 
                 </Card>
             </motion.div>
 
-            <motion.div variants={item} className="space-y-2">
+            <motion.div variants={item} className={STACK.label}>
                 <SectionLabel Icon={Building2} tone="violet">
                     Attendance by department
                 </SectionLabel>
                 <DepartmentComposition rows={summary.attendanceByDepartment} penaltyByDepartment={summary.penaltyByDepartment} />
             </motion.div>
 
-            <motion.div variants={item} className="space-y-2">
+            <motion.div variants={item} className={STACK.label}>
                 <SectionLabel Icon={Wallet} tone="amber">
                     Penalties across all events
                 </SectionLabel>
-                <PenaltyStrip total={summary.penaltyTotal} canViewPenalties={PENALTY_VIEW_ROLES.includes(role)} />
-                <Leaderboard entries={penaltyEntries} emptyLabel="No penalties recorded yet." tone="amber" />
+                <div className={STACK.group}>
+                    <PenaltyStrip total={summary.penaltyTotal} canViewPenalties={PENALTY_VIEW_ROLES.includes(role)} />
+                    <Leaderboard entries={penaltyEntries} emptyLabel="No penalties recorded yet." tone="amber" />
+                </div>
             </motion.div>
         </motion.div>
     );
@@ -407,7 +436,10 @@ function AdminDashboard({ summary, role }: { summary: Extract<DashboardSummary, 
  */
 function SectionLabel({ Icon, tone, children }: { Icon: LucideIcon; tone: Tone; children: ReactNode }) {
     return (
-        <div className="flex items-center gap-2 px-0.5">
+        // gap-2 is the icon-to-text step, used identically here, in every stat
+        // tile, and in every list row — that consistency is what makes an icon
+        // and its label read as one object.
+        <div className={cn('flex items-center', GAP.iconText)}>
             <Tile tone={tone} size="sm" variant="soft" Icon={Icon} />
             <Text variant="small" className="font-medium text-foreground">
                 {children}
@@ -435,8 +467,8 @@ function DepartmentComposition({
 }) {
     if (rows.length === 0) {
         return (
-            <Card>
-                <CardContent className="flex items-center gap-3 pt-6">
+            <Card className={CARD.root}>
+                <CardContent className={cn(CARD.inset, 'flex items-center', GAP.grid)}>
                     <Tile tone="neutral" variant="soft" Icon={Building2} />
                     <Text variant="small">No attendance tracked yet.</Text>
                 </CardContent>
@@ -456,7 +488,7 @@ function DepartmentComposition({
             variants={container}
             initial="hidden"
             animate="show"
-            className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3"
+            className={cn('grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3', GAP.grid)}
         >
             {rows.map((dept, index) => {
                 const tracked = dept.present + dept.late + dept.absent;
@@ -468,10 +500,10 @@ function DepartmentComposition({
 
                 return (
                     <motion.div key={dept.departmentId} variants={item} className="min-w-0">
-                        <Card className="h-full min-w-0 overflow-hidden">
-                            <CardContent className="pt-6">
-                                <div className="flex items-center justify-between gap-3">
-                                    <div className="flex min-w-0 items-center gap-2.5">
+                        <Card className={cn('h-full min-w-0 overflow-hidden', CARD.root)}>
+                            <CardContent className={CARD.inset}>
+                                <div className={cn('flex items-center justify-between', GAP.grid)}>
+                                    <div className={cn('flex min-w-0 items-center', GAP.iconText)}>
                                         {/* The one solid tile on this card: a department's code is
                                             how you identify the row, so that's what gets lit. */}
                                         <Tile tone={tone} size="md" variant="solid">
@@ -494,7 +526,9 @@ function DepartmentComposition({
                                     </div>
                                 </div>
 
-                                <div className="mt-4 flex h-2.5 w-full items-center gap-0.5 overflow-hidden rounded-full bg-muted">
+                                {/* gap-px is a hairline between segments, not spacing —
+                                    it separates two colours, it doesn't position anything. */}
+                                <div className="mt-4 flex h-2 w-full items-center gap-px overflow-hidden rounded-full bg-muted">
                                     {presentPct > 0 && (
                                         <motion.div
                                             initial={{ width: 0 }}
@@ -521,7 +555,7 @@ function DepartmentComposition({
                                     )}
                                 </div>
 
-                                <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-caption text-muted-foreground">
+                                <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-caption text-muted-foreground">
                                     <LegendDot tone="emerald">Present {Math.round(presentPct)}%</LegendDot>
                                     <LegendDot tone="amber">Late {Math.round(latePct)}%</LegendDot>
                                     <LegendDot tone="red">Absent {Math.round(absentPct)}%</LegendDot>
@@ -531,14 +565,14 @@ function DepartmentComposition({
                                 {penalty && penalty.penaltyTotal > 0 && (
                                     <div
                                         className={cn(
-                                            'mt-3 flex flex-wrap items-center justify-between gap-x-2 gap-y-1 rounded-xl border px-3 py-2',
+                                            'mt-4 flex flex-wrap items-center justify-between gap-x-2 gap-y-2 rounded-xl border px-4 py-2',
                                             TONE.red.wash,
                                         )}
                                     >
-                                        <span className="flex shrink-0 items-center gap-1.5 text-caption text-muted-foreground">
-                                            <Wallet className="size-3.5" /> Penalties
+                                        <span className={cn('flex shrink-0 items-center text-caption text-muted-foreground', GAP.iconText)}>
+                                            <Wallet className="size-4" /> Penalties
                                         </span>
-                                        <span className="flex min-w-0 flex-wrap items-baseline justify-end gap-x-1 text-small font-semibold tabular-nums text-foreground">
+                                        <span className="flex min-w-0 flex-wrap items-baseline justify-end gap-x-2 text-small font-semibold tabular-nums text-foreground">
                                             <span className="shrink-0">{formatCurrency(penalty.penaltyTotal)}</span>
                                             <span className="shrink-0 font-normal text-muted-foreground">
                                                 ({Math.round(penalty.percentageOfOverall)}% of all)
@@ -557,8 +591,8 @@ function DepartmentComposition({
 
 function LegendDot({ tone, children }: { tone: Tone; children: ReactNode }) {
     return (
-        <span className="flex items-center gap-1.5">
-            <span className={cn('size-1.5 rounded-full', TONE[tone].dot)} />
+        <span className={cn('flex items-center', GAP.iconText)}>
+            <span className={cn('size-2 rounded-full', TONE[tone].dot)} />
             {children}
         </span>
     );
@@ -578,7 +612,31 @@ function LegendDot({ tone, children }: { tone: Tone; children: ReactNode }) {
  * is the same trick the streak tile plays (saturated fill + its own shadow)
  * scaled up to the largest element on the page.
  */
-function ScoreHero({ value, tier, eyebrow, caption }: { value: number | null; tier: Tier; eyebrow: string; caption: string }) {
+interface ScoreHeroSegment {
+    value: number;
+    tone: Tone;
+}
+
+function ScoreHero({
+    value,
+    tier,
+    eyebrow,
+    caption,
+    segments,
+}: {
+    value: number | null;
+    tier: Tier;
+    eyebrow: string;
+    caption: string;
+    /**
+     * When provided, the ring is drawn as a Present/Late/Absent-style
+     * multi-color donut (see SegmentedRing) instead of a single gradient
+     * arc — so a student whose 67% is "1 present, 1 late, 1 absent" sees
+     * a green, amber and red slice rather than one flat red arc that only
+     * reflects the tier, not the actual mix behind it.
+     */
+    segments?: ScoreHeroSegment[];
+}) {
     const { Icon, tone } = tier;
 
     return (
@@ -595,28 +653,57 @@ function ScoreHero({ value, tier, eyebrow, caption }: { value: number | null; ti
             transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
             className="rounded-3xl border bg-card"
         >
-            <div className="overflow-hidden rounded-[inherit] p-6">
-                <div className="flex flex-col items-center gap-4 text-center">
+            <div className={cn('overflow-hidden rounded-[inherit]', CARD.pad)}>
+                <div className={cn('flex flex-col items-center text-center', GAP.grid)}>
                     <Text variant="caption">{eyebrow}</Text>
 
-                    <RadialGauge value={value ?? 0} gradient={TONE[tone].gradient}>
-                        {value !== null ? (
-                            <>
-                                <span className="text-display font-semibold tabular-nums text-foreground">
-                                    <AnimatedCounter value={value} format={(n) => `${Math.round(n)}`} />
-                                </span>
-                                <span className="text-caption text-muted-foreground">percent</span>
-                            </>
-                        ) : (
-                            <span className="text-h3 text-muted-foreground">—</span>
-                        )}
-                    </RadialGauge>
+                    {segments ? (
+                        <SegmentedRing
+                            size={SPACE.sm * 11}
+                            strokeWidth={SPACE.sm}
+                            segments={segments.map((segment) => ({ value: segment.value, className: TONE[segment.tone].stroke }))}
+                        >
+                            {value !== null ? (
+                                <>
+                                    <span className="text-display font-semibold tabular-nums text-foreground">
+                                        <AnimatedCounter value={value} format={(n) => `${Math.round(n)}`} />
+                                    </span>
+                                    <span className="text-caption text-muted-foreground">percent</span>
+                                </>
+                            ) : (
+                                <span className="text-h3 text-muted-foreground">—</span>
+                            )}
+                        </SegmentedRing>
+                    ) : (
+                        <RadialGauge value={value ?? 0} gradient={TONE[tone].gradient}>
+                            {value !== null ? (
+                                <>
+                                    <span className="text-display font-semibold tabular-nums text-foreground">
+                                        <AnimatedCounter value={value} format={(n) => `${Math.round(n)}`} />
+                                    </span>
+                                    <span className="text-caption text-muted-foreground">percent</span>
+                                </>
+                            ) : (
+                                <span className="text-h3 text-muted-foreground">—</span>
+                            )}
+                        </RadialGauge>
+                    )}
 
                     <motion.div
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ delay: 0.6, type: 'spring', stiffness: 260, damping: 18 }}
-                        className={cn('flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-small font-medium shadow-none', TONE[tone].solid)}
+                        // Built from the same parts as CHIP rather than from CHIP
+                        // itself: this is the one pill on the page carrying
+                        // body-size text, and layering `text-small` over CHIP's
+                        // `text-caption` would leave two font-size utilities for
+                        // tailwind-merge to pick between. It still takes the 48px
+                        // control height instead of the 32px chip height.
+                        className={cn(
+                            'inline-flex shrink-0 items-center gap-2 rounded-full px-4 text-small font-medium shadow-none',
+                            TAP,
+                            TONE[tone].solid,
+                        )}
                     >
                         <Icon className="size-4" />
                         {tier.label}
@@ -650,9 +737,9 @@ function QuietHero({
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-            className="rounded-3xl border bg-card p-4 shadow-sm sm:p-6"
+            className={cn('rounded-3xl border bg-card shadow-sm', CARD.pad)}
         >
-            <div className="flex items-center gap-2.5 text-muted-foreground">
+            <div className={cn('flex items-center text-muted-foreground', GAP.iconText)}>
                 <Tile tone="neutral" size="sm" variant="soft" Icon={Moon} />
                 <Text variant="small">No session is currently open.</Text>
             </div>
@@ -660,7 +747,7 @@ function QuietHero({
                 all events" section below — rather than repeated here, so the figure
                 the person sees at the top of the page always matches the figure they
                 see when they scroll down to check it. */}
-            <div className="mt-4 grid gap-2 sm:grid-cols-3 sm:gap-3">
+            <div className={cn('mt-4 grid sm:grid-cols-3', GAP.grid)}>
                 <StatTile label="Students" value={totalStudents} Icon={Users} tone="violet" variant="solid" />
                 <StatTile label="Events" value={eventsCount} Icon={CalendarDays} tone="sky" />
                 <StatTile label="Departments" value={departmentsCount} Icon={Building2} tone="orange" />
@@ -674,8 +761,8 @@ function PenaltyStrip({ total, canViewPenalties }: { total: number; canViewPenal
     const tone: Tone = isOwed ? 'red' : 'emerald';
 
     const content = (
-        <Card className={cn('border', TONE[tone].wash, canViewPenalties && 'transition-transform active:scale-[0.99]')}>
-            <CardContent className="flex items-center gap-4 pt-6">
+        <Card className={cn('border', CARD.root, TONE[tone].wash, canViewPenalties && 'transition-transform active:scale-[0.99]')}>
+            <CardContent className={cn(CARD.inset, 'flex items-center', GAP.grid)}>
                 <Tile tone={tone} size="lg" variant="solid" Icon={Wallet} />
                 <div className="min-w-0">
                     <CardDescription>{isOwed ? 'Outstanding penalty balance' : 'Nothing owed'}</CardDescription>
@@ -706,8 +793,8 @@ function SplitBar({ mineLabel, mine, othersLabel, others }: { mineLabel: string;
     const minePercent = total > 0 ? (mine / total) * 100 : 0;
 
     return (
-        <div className="space-y-2">
-            <div className="flex h-3 overflow-hidden rounded-full bg-muted">
+        <div className={STACK.label}>
+            <div className="flex h-2 overflow-hidden rounded-full bg-muted">
                 <motion.div
                     className={cn('h-full rounded-full', TONE.violet.bar)}
                     initial={{ width: 0 }}
@@ -719,8 +806,8 @@ function SplitBar({ mineLabel, mine, othersLabel, others }: { mineLabel: string;
                 <LegendDot tone="violet">
                     {mineLabel} · <span className="font-medium text-foreground">{mine}</span>
                 </LegendDot>
-                <span className="flex items-center gap-1.5 text-muted-foreground">
-                    <span className="size-1.5 rounded-full bg-muted-foreground/40" />
+                <span className={cn('flex items-center text-muted-foreground', GAP.iconText)}>
+                    <span className="size-2 rounded-full bg-muted-foreground/40" />
                     {othersLabel} · <span className="font-medium text-foreground">{others}</span>
                 </span>
             </div>
@@ -731,8 +818,8 @@ function SplitBar({ mineLabel, mine, othersLabel, others }: { mineLabel: string;
 function ActiveSessionCard({ session, status }: { session: DashboardActiveSession | null; status?: AttendanceStatus | null }) {
     if (!session) {
         return (
-            <Card>
-                <CardContent className="flex items-center gap-3 pt-6">
+            <Card className={CARD.root}>
+                <CardContent className={cn(CARD.inset, 'flex items-center', GAP.grid)}>
                     <Tile tone="neutral" variant="soft" Icon={Moon} />
                     <div>
                         <Text variant="small" className="font-medium text-foreground">
@@ -749,8 +836,8 @@ function ActiveSessionCard({ session, status }: { session: DashboardActiveSessio
     const WindowIcon = WINDOW_TYPE_ICON[session.windowType] ?? Clock;
 
     return (
-        <Card className={cn('border', TONE.emerald.wash)}>
-            <CardHeader className="gap-1 pb-2">
+        <Card className={cn('border', CARD.root, TONE.emerald.wash)}>
+            <CardHeader className={cn(CARD.inset, GAP.iconText)}>
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <span className="relative flex size-2">
@@ -767,12 +854,13 @@ function ActiveSessionCard({ session, status }: { session: DashboardActiveSessio
                     </Link>
                 </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className={cn(CARD.inset, STACK.group)}>
                 <Text variant="small">
                     Day {session.eventDay.dayNumber} — {formatDate(session.eventDay.date)}
                 </Text>
 
-                <div className="flex items-center gap-3 rounded-2xl border bg-card px-3 py-2.5">
+                {/* 8px top and bottom around a 32px tile = a 48px row. */}
+                <div className={cn(ROW, 'border bg-card')}>
                     <Tile tone="sky" size="sm" variant="soft" Icon={WindowIcon} />
                     <div className="min-w-0 flex-1">
                         <Text variant="small" className="font-medium text-foreground">
@@ -783,14 +871,12 @@ function ActiveSessionCard({ session, status }: { session: DashboardActiveSessio
                         </Text>
                     </div>
                     {remaining !== null && (
-                        <span className={cn('shrink-0 rounded-full px-2.5 py-1 text-caption font-medium', TONE.amber.chip)}>
-                            {remaining} min left
-                        </span>
+                        <span className={cn(CHIP, TONE.amber.chip)}>{remaining} min left</span>
                     )}
                 </div>
 
                 {status === AttendanceStatus.Pending && (
-                    <div className={cn('flex items-center gap-2 text-small font-medium', TONE.violet.text)}>
+                    <div className={cn('flex items-center text-small font-medium', GAP.iconText, TONE.violet.text)}>
                         <QrCode className="size-4 shrink-0" />
                         Scan your QR at the gate to check in.
                     </div>

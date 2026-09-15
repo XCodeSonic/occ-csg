@@ -38,8 +38,20 @@ export interface ScanResult {
  * excluded student, etc.) — carries the officer-facing reason straight
  * from the API's `{ message }` error body so the scan screen can show
  * *why* a badge was rejected, not just that it was.
+ *
+ * Also used by `reverseScan` below, which fails the same way (409 when
+ * the session has closed, 404 when someone else already reversed the
+ * same row) and wants the same treatment: show the server's sentence.
  */
 export class ScanError extends Error {}
+
+/** Turns any axios failure carrying a `{ message }` body into a ScanError. */
+function toScanError(error: unknown): unknown {
+    if (axios.isAxiosError(error) && typeof error.response?.data?.message === 'string') {
+        return new ScanError(error.response.data.message);
+    }
+    return error;
+}
 
 interface RawScanStudent {
     id: number;
@@ -82,6 +94,29 @@ function toScanResult(raw: RawScanResponse): ScanResult {
             photoUrl: raw.student.photo_url,
         },
     };
+}
+
+/**
+ * The outcome of undoing a scan (POST .../records/{record}/reverse). The
+ * attendance row itself is deleted server-side — "pending" in this app is
+ * the *absence* of a record — so there's nothing to map back into a
+ * ScanResult; `recordId` is the row that just stopped existing, which is
+ * what the scan screen needs to drop it from its list.
+ */
+export interface ScanReversal {
+    recordId: number;
+    studentId: number;
+    reason: string;
+    reversedAt: string | null;
+}
+
+interface RawScanReversal {
+    record_id: number;
+    student_id: number;
+    status: string;
+    reason: string;
+    reversed_by: number;
+    reversed_at: string | null;
 }
 
 export interface CreateSessionPayload {
@@ -149,10 +184,59 @@ export const httpSessionsRepository = {
             const { data } = await httpClient.post<RawScanResponse>(`/sessions/${sessionId}/scan`, { token });
             return toScanResult(data);
         } catch (error) {
-            if (axios.isAxiosError(error) && typeof error.response?.data?.message === 'string') {
-                throw new ScanError(error.response.data.message);
-            }
-            throw error;
+            throw toScanError(error);
+        }
+    },
+
+    /**
+     * The last few badges read into *this one session* — GET
+     * /sessions/{session}/recent-scans.
+     *
+     * Read from the server rather than accumulated in the browser: a
+     * device-local list can't know that a scan was reversed (by this
+     * officer or another one), and it carries over rows from whatever
+     * session that device happened to scan earlier in the day. The API
+     * answers for one session only, so the strip can't show another
+     * session's or another event's students.
+     *
+     * Shaped identically to the single-scan response, so both go through
+     * `toScanResult` rather than a second near-identical parser.
+     */
+    async recentScans(sessionId: number, limit: number): Promise<ScanResult[]> {
+        const { data } = await httpClient.get<RawScanResponse[]>(`/sessions/${sessionId}/recent-scans`, {
+            params: { limit },
+        });
+
+        return data.map(toScanResult);
+    },
+
+    /**
+     * Undo a scan that shouldn't have counted — the QR belonged to
+     * someone who isn't the person who presented it. The student goes
+     * back to pending for this session and can be scanned again by its
+     * real owner.
+     *
+     * `reason` is optional: the officer has a queue in front of them, and
+     * the server fills in a default rather than blocking the line on
+     * typing. When one is given it must be at least 3 characters (the
+     * API's own rule) — the scan screen offers one-tap presets so the
+     * common cases land something meaningful.
+     */
+    async reverseScan(sessionId: number, recordId: number, reason?: string): Promise<ScanReversal> {
+        try {
+            const { data } = await httpClient.post<RawScanReversal>(
+                `/sessions/${sessionId}/records/${recordId}/reverse`,
+                reason ? { reason } : {},
+            );
+
+            return {
+                recordId: data.record_id,
+                studentId: data.student_id,
+                reason: data.reason,
+                reversedAt: data.reversed_at,
+            };
+        } catch (error) {
+            throw toScanError(error);
         }
     },
 };

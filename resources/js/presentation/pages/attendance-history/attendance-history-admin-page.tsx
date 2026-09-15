@@ -4,6 +4,7 @@ import { CheckCircle2, Clock, MinusCircle, XCircle, type LucideIcon } from 'luci
 import { AutosuggestInput } from '@/components/ui/autosuggest-input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { AvatarBadge } from '@/components/ui/avatar';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -27,12 +28,13 @@ import {
 } from '@/domain/enums';
 import { cn, formatDate, formatScannedAt } from '@/lib/utils';
 import { Heading, Text } from '@/presentation/components/typography';
-import { Tile } from '@/presentation/components/tile';
 import { TONE, type Tone } from '@/presentation/components/tone';
+import { UserAvatar } from '@/presentation/components/user-avatar';
 
-// Same status→hue mapping as the dashboard (present/late/absent/excluded),
-// now carried by a Tile instead of a bare badge so a row is legible at a
-// glance from its left edge, not just from the pill on the right.
+// Same status→hue mapping as the dashboard (present/late/absent/excluded).
+// The row's left edge now carries the student's photo, so this hue rides on
+// the small badge overlaid on that avatar (plus the pill on the right) —
+// a row is still legible at a glance without the status owning the tile.
 const STATUS_TONE: Record<AttendanceStatus, Tone> = {
     [AttendanceStatus.Present]: 'emerald',
     [AttendanceStatus.Late]: 'amber',
@@ -125,7 +127,7 @@ export function AttendanceHistoryAdminPage() {
                 </Text>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-4">
                 {/* Same responsive pattern as the Penalties ledger: search
                     stays full-width, the selects pack 2-per-row on mobile
                     and go inline from `sm` up. */}
@@ -259,12 +261,22 @@ export function AttendanceHistoryAdminPage() {
 
                 {historyPage?.data.map((row) => {
                     const tone = STATUS_TONE[row.status];
+                    const StatusIcon = STATUS_ICON[row.status];
                     return (
                         <Card key={row.id} className="overflow-hidden">
-                            <CardContent className="space-y-3">
-                                <div className="flex items-start justify-between gap-3">
-                                    <div className="flex min-w-0 items-center gap-3">
-                                        <Tile tone={tone} size="md" variant="soft" Icon={STATUS_ICON[row.status]} />
+                            <CardContent className="space-y-4">
+                                <div className="flex items-start justify-between gap-4">
+                                    <div className="flex min-w-0 items-center gap-4">
+                                        {/* The student's own photo rather than a status glyph —
+                                            the status itself moves to a small tinted badge in the
+                                            corner (and is still spelled out in the pill on the
+                                            right), so the row keeps its at-a-glance hue from the
+                                            left edge without spending the whole tile on it. */}
+                                        <UserAvatar student={row} size="lg">
+                                            <AvatarBadge className={cn(TONE[tone].dot, 'text-white')}>
+                                                <StatusIcon />
+                                            </AvatarBadge>
+                                        </UserAvatar>
                                         <div className="min-w-0">
                                             <Text className="truncate font-medium">
                                                 {row.lastName}, {row.firstName}

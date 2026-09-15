@@ -113,7 +113,7 @@ export function ChangePasswordPage() {
                     {hasTypedConfirmation ? (
                         <p
                             className={cn(
-                                'flex items-center gap-1.5 text-xs',
+                                'flex items-center gap-2 text-xs',
                                 passwordsMatch ? 'text-emerald-600' : 'text-destructive',
                             )}
                         >

@@ -15,6 +15,12 @@ export interface AttendanceHistoryEntry {
     firstName: string;
     departmentId: number;
     departmentCode: string | null;
+    /**
+     * Ready-to-use URL for the attendee's photo, or null when none is on
+     * file — the ledger renders the real person rather than a status
+     * glyph, and UserAvatar falls back to initials when this is null.
+     */
+    photoUrl: string | null;
     major: string | null;
     yearLevel: string | null;
     section: string | null;
@@ -76,6 +82,7 @@ interface RawAttendanceHistoryEntry {
     first_name: string;
     department_id: number;
     department_code: string | null;
+    photo_url: string | null;
     major: string | null;
     year_level: string | null;
     section: string | null;
@@ -115,6 +122,7 @@ function toAttendanceHistoryEntry(raw: RawAttendanceHistoryEntry): AttendanceHis
         firstName: raw.first_name,
         departmentId: raw.department_id,
         departmentCode: raw.department_code,
+        photoUrl: raw.photo_url ?? null,
         major: raw.major,
         yearLevel: raw.year_level,
         section: raw.section,

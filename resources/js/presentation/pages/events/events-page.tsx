@@ -29,6 +29,7 @@ import { Heading, Text } from '@/presentation/components/typography';
 import { EmptyState, ListSkeleton } from '@/presentation/components/empty-state';
 import { Tile } from '@/presentation/components/tile';
 import { TONE } from '@/presentation/components/tone';
+import { CHIP } from '@/presentation/components/spacing';
 
 const MANAGE_ROLES: Role[] = [Role.SystemAdmin, Role.CsgAdmin];
 
@@ -123,14 +124,14 @@ export function EventsPage() {
     const allDepartmentsSelected = !!departments && form.departmentIds.length === departments.length;
 
     return (
-        <div className="mx-auto max-w-2xl space-y-6">
+        <div className="mx-auto max-w-2xl space-y-8">
             <div className="flex items-start justify-between gap-4">
                 <div>
                     <Heading level="h1">Events</Heading>
                     <Text variant="small">Every event is scoped to a semester within the active academic year.</Text>
                 </div>
                 {canManage && hasActiveYear && hasActiveSemester && (
-                    <Button onClick={() => setIsCreating(true)} size="sm" className="shrink-0 gap-1.5">
+                    <Button onClick={() => setIsCreating(true)} size="sm" className="shrink-0 gap-2">
                         <CalendarPlus className="size-4" />
                         Add event
                     </Button>
@@ -184,7 +185,7 @@ export function EventsPage() {
                 />
             )}
 
-            <div className="space-y-3">
+            <div className="space-y-4">
                 {events?.map((event) => {
                     const isOngoing = event.status === EventStatus.Ongoing;
 
@@ -193,7 +194,7 @@ export function EventsPage() {
                             key={event.id}
                             to={`/events/${event.id}`}
                             className={cn(
-                                'flex items-center gap-3.5 rounded-2xl border bg-card p-4 transition-all hover:shadow-md active:scale-[0.995]',
+                                'flex items-center gap-4 rounded-2xl border bg-card p-4 transition-all hover:shadow-md active:scale-[0.995]',
                                 isOngoing && TONE.emerald.wash,
                             )}
                         >
@@ -207,8 +208,8 @@ export function EventsPage() {
                                 Icon={isOngoing ? Radio : CalendarDays}
                             />
 
-                            <div className="min-w-0 flex-1 space-y-1">
-                                <div className="flex flex-wrap items-center gap-1.5">
+                            <div className="min-w-0 flex-1 space-y-2">
+                                <div className="flex flex-wrap items-center gap-2">
                                     <Text className="truncate font-medium">{event.name}</Text>
                                     <Badge variant="secondary" className={EVENT_STATUS_BADGE_CLASS[event.status]}>
                                         {EVENT_STATUS_LABEL[event.status]}
@@ -234,12 +235,9 @@ export function EventsPage() {
                                     some departments — "all of them" is the default
                                     and says nothing. */}
                                 {departments && event.departments.length < departments.length && (
-                                    <div className="flex flex-wrap gap-1 pt-0.5">
+                                    <div className="flex flex-wrap gap-2 pt-1">
                                         {event.departments.map((department) => (
-                                            <span
-                                                key={department.id}
-                                                className={cn('rounded-full px-2 py-0.5 text-caption font-medium', TONE.violet.chip)}
-                                            >
+                                            <span key={department.id} className={cn(CHIP, TONE.violet.chip)}>
                                                 {department.code}
                                             </span>
                                         ))}
@@ -313,7 +311,7 @@ export function EventsPage() {
                                 intramural just for BSIT and BEd.
                             </Text>
                             {isLoadingDepartments && <Text variant="small">Loading departments…</Text>}
-                            <div className="max-h-56 space-y-1 overflow-y-auto rounded-2xl border border-border p-2">
+                            <div className="max-h-56 space-y-2 overflow-y-auto rounded-2xl border border-border p-2">
                                 {departments?.map((department) => {
                                     const checked = form.departmentIds.includes(department.id);
 
@@ -321,7 +319,7 @@ export function EventsPage() {
                                         <label
                                             key={department.id}
                                             className={cn(
-                                                'flex cursor-pointer items-center gap-2.5 rounded-xl px-2.5 py-2 text-sm transition-colors',
+                                                'flex cursor-pointer items-center gap-2 rounded-xl px-2 py-2 text-sm transition-colors',
                                                 checked ? 'bg-violet-500/8 dark:bg-violet-500/12' : 'hover:bg-muted',
                                             )}
                                         >
@@ -331,10 +329,7 @@ export function EventsPage() {
                                             />
                                             <span className="min-w-0 flex-1 truncate">{department.name}</span>
                                             <span
-                                                className={cn(
-                                                    'shrink-0 rounded-full px-2 py-0.5 text-caption font-medium',
-                                                    checked ? TONE.violet.chip : 'bg-muted text-muted-foreground',
-                                                )}
+                                                className={cn(CHIP, 'shrink-0', checked ? TONE.violet.chip : 'bg-muted text-muted-foreground')}
                                             >
                                                 {department.code}
                                             </span>

@@ -3,8 +3,18 @@ import { isAxiosError } from 'axios';
 import { Building2 } from 'lucide-react';
 import { toast } from 'sonner';
 
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -44,6 +54,7 @@ export function DepartmentsPage() {
     const [editForm, setEditForm] = useState<DepartmentFormValues>(EMPTY_FORM);
     const [logoTargetId, setLogoTargetId] = useState<number | null>(null);
     const [deletingId, setDeletingId] = useState<number | null>(null);
+    const [departmentPendingDelete, setDepartmentPendingDelete] = useState<Department | null>(null);
     const logoInputRef = useRef<HTMLInputElement>(null);
 
     if (!student) return null;
@@ -109,10 +120,9 @@ export function DepartmentsPage() {
         );
     }
 
-    function handleDelete(department: Department) {
-        if (!window.confirm(`Delete ${department.name} (${department.code})? This can't be undone.`)) {
-            return;
-        }
+    function confirmDelete() {
+        const department = departmentPendingDelete;
+        if (!department) return;
 
         setDeletingId(department.id);
         deleteDepartment.mutate(department.id, {
@@ -211,15 +221,15 @@ export function DepartmentsPage() {
 
             {!isLoading && departments?.length === 0 && <Text variant="small">No departments yet.</Text>}
 
-            <div className="space-y-3">
+            <div className="space-y-4">
                 {departments?.map((department, index) => {
                     const tone = DEPARTMENT_TONES[index % DEPARTMENT_TONES.length];
                     return (
                     <Card key={department.id} className="overflow-hidden">
                         {editingId === department.id ? (
-                            <CardContent className="pt-6">
+                            <CardContent>
                                 <form onSubmit={(event) => handleEditSubmit(event, department.id)} className="space-y-4">
-                                    <div className="flex items-center gap-3">
+                                    <div className="flex items-center gap-4">
                                         <Avatar size="lg" className="rounded-2xl">
                                             {department.logoUrl ? (
                                                 <AvatarImage src={department.logoUrl} alt={department.code} />
@@ -269,8 +279,8 @@ export function DepartmentsPage() {
                                 </form>
                             </CardContent>
                         ) : (
-                            <CardContent className="flex items-center justify-between gap-3 pt-6">
-                                <div className="flex min-w-0 items-center gap-3">
+                            <CardContent className="flex items-center justify-between gap-4">
+                                <div className="flex min-w-0 items-center gap-4">
                                     <Avatar size="lg" className="rounded-2xl">
                                         {department.logoUrl ? <AvatarImage src={department.logoUrl} alt={department.code} /> : null}
                                         <AvatarFallback className={cn('rounded-2xl', TONE[tone].soft)}>
@@ -292,7 +302,7 @@ export function DepartmentsPage() {
                                             variant="outline"
                                             className="text-destructive hover:text-destructive"
                                             disabled={deleteDepartment.isPending && deletingId === department.id}
-                                            onClick={() => handleDelete(department)}
+                                            onClick={() => setDepartmentPendingDelete(department)}
                                         >
                                             {deleteDepartment.isPending && deletingId === department.id ? 'Deleting…' : 'Delete'}
                                         </Button>
@@ -310,6 +320,27 @@ export function DepartmentsPage() {
                 Department codes (e.g. BSIT, BSBA) are used as the course throughout the app. A department can only be
                 deleted while it has no students — including students who administer it as SC Admin.
             </Text>
+
+            <AlertDialog open={departmentPendingDelete !== null} onOpenChange={(open) => !open && setDepartmentPendingDelete(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete department?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {departmentPendingDelete && (
+                                <>
+                                    Delete {departmentPendingDelete.name} ({departmentPendingDelete.code})? This can't be undone.
+                                </>
+                            )}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={confirmDelete} className={buttonVariants({ variant: 'destructive' })}>
+                            Yes, delete
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

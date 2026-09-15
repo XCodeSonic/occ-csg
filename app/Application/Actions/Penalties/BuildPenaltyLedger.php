@@ -72,6 +72,12 @@ final class BuildPenaltyLedger
             'first_name' => $penalty->student->first_name,
             'department_id' => $penalty->student->department_id,
             'department_code' => $penalty->student->department?->code,
+            // The ledger renders the student's own photo rather than a
+            // generic icon (see penalties-page.tsx's UserAvatar), so the
+            // row has to carry the same ready-to-use URL the students
+            // list already returns. Null when no photo is on file — the
+            // frontend falls back to initials.
+            'photo_url' => $penalty->student->photo_url,
             'amount' => (float) $penalty->amount,
             'reason' => $penalty->reason,
             'is_reversed' => $penalty->is_reversed,

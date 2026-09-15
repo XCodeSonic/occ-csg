@@ -50,19 +50,19 @@ export function AuthLayout({ title, description, children }: AuthLayoutProps) {
                 </div>
 
                 <div className="rounded-3xl border border-border bg-card p-6 shadow-sm sm:p-8">
-                    <div className="mb-6 space-y-1">
+                    <div className="mb-6 space-y-2">
                         <Heading level="h2">{title}</Heading>
                         {description ? <Text variant="small">{description}</Text> : null}
                     </div>
                     {children}
                 </div>
 
-                <div className="mt-8 flex flex-col items-center gap-3 text-center">
+                <div className="mt-8 flex flex-col items-center gap-4 text-center">
                     <div className="flex items-center gap-2">
                         <Text variant="caption">Developed by</Text>
-                        <ShimmerLogo src={psitsLogo} alt="PSITS" className="size-8 p-1" />
+                        <ShimmerLogo src={psitsLogo} alt="PSITS" className="size-8 p-2" />
                     </div>
-                    <div className="flex items-center gap-1.5 text-caption text-muted-foreground">
+                    <div className="flex items-center gap-2 text-caption text-muted-foreground">
                         <button
                             type="button"
                             onClick={() => setLegalOpen('terms')}

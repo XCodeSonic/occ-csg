@@ -1,12 +1,17 @@
 import * as React from "react"
 import { cn } from "cn"
 
+// 16px padding/header-gap on mobile, 24px from `sm` up (see the 8-point
+// scale in presentation/components/spacing.ts). This used to be a flat
+// 24px everywhere, every call site that wanted the mobile-friendly 16px
+// had to override it by hand — baked in here instead, so every Card in
+// the app gets the right padding with no per-screen opt-in.
 function Card({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="card"
       className={cn(
-        "flex flex-col gap-6 rounded-xl border bg-card py-6 text-card-foreground shadow-sm",
+        "flex flex-col gap-4 rounded-xl border bg-card py-4 text-card-foreground shadow-sm sm:gap-6 sm:py-6",
         className
       )}
       {...props}
@@ -19,7 +24,7 @@ function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="card-header"
       className={cn(
-        "@container/card-header grid auto-rows-min grid-rows-[auto_auto] items-start gap-2 px-6 has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-6",
+        "@container/card-header grid auto-rows-min grid-rows-[auto_auto] items-start gap-2 px-4 has-data-[slot=card-action]:grid-cols-[1fr_auto] sm:px-6 [.border-b]:pb-4 sm:[.border-b]:pb-6",
         className
       )}
       {...props}
@@ -64,7 +69,7 @@ function CardContent({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="card-content"
-      className={cn("px-6", className)}
+      className={cn("px-4 sm:px-6", className)}
       {...props}
     />
   )
@@ -74,7 +79,7 @@ function CardFooter({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="card-footer"
-      className={cn("flex items-center px-6 [.border-t]:pt-6", className)}
+      className={cn("flex items-center px-4 sm:px-6 [.border-t]:pt-4 sm:[.border-t]:pt-6", className)}
       {...props}
     />
   )

@@ -54,12 +54,12 @@ export function AgreementPage() {
     return (
         <AuthLayout title="Before you continue" description="Please review and accept to keep using OCC CSG.">
             <div className="space-y-4">
-                <div className="flex rounded-md border border-border bg-muted p-1 text-sm">
+                <div className="flex rounded-md border border-border bg-muted p-2 text-sm">
                     <button
                         type="button"
                         onClick={() => setActiveDoc('terms')}
                         className={cn(
-                            'flex-1 rounded-sm px-3 py-1.5 font-medium transition-colors',
+                            'flex-1 rounded-sm px-4 py-2 font-medium transition-colors',
                             activeDoc === 'terms' ? 'bg-background shadow-sm' : 'text-muted-foreground',
                         )}
                     >
@@ -69,7 +69,7 @@ export function AgreementPage() {
                         type="button"
                         onClick={() => setActiveDoc('privacy')}
                         className={cn(
-                            'flex-1 rounded-sm px-3 py-1.5 font-medium transition-colors',
+                            'flex-1 rounded-sm px-4 py-2 font-medium transition-colors',
                             activeDoc === 'privacy' ? 'bg-background shadow-sm' : 'text-muted-foreground',
                         )}
                     >
@@ -81,7 +81,7 @@ export function AgreementPage() {
                     <LegalDocumentBody document={document} />
                 </div>
 
-                <label className="flex items-start gap-2.5 text-small">
+                <label className="flex items-start gap-2 text-small">
                     <input
                         type="checkbox"
                         checked={agreed}

@@ -4,6 +4,7 @@ import { motion, useReducedMotion } from 'framer-motion';
 interface RadialGaugeProps {
     /** 0–100 */
     value: number;
+    /** Diameter in px. Keep it on the 8-point scale (see spacing.ts) — 176, 144, … */
     size?: number;
     strokeWidth?: number;
     /** Tailwind stroke-* class for the filled arc. Ignored when `gradient` is set. */
@@ -25,7 +26,7 @@ interface RadialGaugeProps {
 export function RadialGauge({
     value,
     size = 176,
-    strokeWidth = 14,
+    strokeWidth = 16,
     colorClassName = 'stroke-violet-500 dark:stroke-violet-400',
     gradient,
     trackClassName = 'stroke-black/5 dark:stroke-white/10',

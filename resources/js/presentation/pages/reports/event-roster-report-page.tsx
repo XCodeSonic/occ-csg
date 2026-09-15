@@ -85,8 +85,8 @@ export function EventRosterReportPage() {
     }
 
     return (
-        <div className="mx-auto max-w-2xl space-y-6">
-            <div className="space-y-3">
+        <div className="mx-auto max-w-2xl space-y-8">
+            <div className="space-y-4">
                 <div className="flex items-start justify-between gap-4">
                     <div>
                         <Heading level="h1">Roster Report</Heading>
@@ -178,7 +178,7 @@ export function EventRosterReportPage() {
                             </Button>
                         </div>
                     ) : (
-                        <div className="flex flex-col gap-3 sm:flex-row">
+                        <div className="flex flex-col gap-4 sm:flex-row">
                             <Button
                                 className="flex-1 gap-2"
                                 onClick={() => handleGenerate('xlsx')}

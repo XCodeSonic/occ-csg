@@ -5,6 +5,7 @@ import { motion, type Variants } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
+import { CARD, STACK } from '@/presentation/components/spacing';
 import { Text } from '@/presentation/components/typography';
 import { Tile } from '@/presentation/components/tile';
 import { TONE, type Tone } from '@/presentation/components/tone';
@@ -66,8 +67,11 @@ export function Leaderboard({
 }) {
     if (entries.length === 0) {
         return (
-            <Card>
-                <CardContent className="pt-6">
+            // No `pt-6` here anymore: Card already carries 16/24px of vertical
+            // padding, so adding it made an empty card 32/48px deep at the top
+            // and 16/24px at the bottom — lopsided, and off the scale.
+            <Card className={CARD.root}>
+                <CardContent className={CARD.inset}>
                     <Text variant="small">{emptyLabel}</Text>
                 </CardContent>
             </Card>
@@ -75,14 +79,14 @@ export function Leaderboard({
     }
 
     return (
-        <Card className="overflow-hidden">
-            <CardContent className="pt-6">
-                <motion.div variants={container} initial="hidden" animate="show" className="space-y-4">
+        <Card className={cn('overflow-hidden', CARD.root)}>
+            <CardContent className={CARD.inset}>
+                <motion.div variants={container} initial="hidden" animate="show" className={STACK.group}>
                     {entries.map((entry, index) => {
                         const inner = (
                             <>
                                 <div className="flex items-center justify-between gap-2">
-                                    <div className="flex min-w-0 items-center gap-2.5">
+                                    <div className="flex min-w-0 items-center gap-2">
                                         <RankBadge rank={index} tone={tone} />
                                         <Text
                                             variant="small"
@@ -93,10 +97,13 @@ export function Leaderboard({
                                     </div>
                                     <span className="shrink-0 font-semibold tabular-nums text-foreground">{entry.value}</span>
                                 </div>
-                                <div className="ml-10.5 flex items-center gap-2">
+                                {/* ml-10 = the 32px rank badge + the 8px gap beside it,
+                                    so the bar starts exactly under the label rather than
+                                    at the old 42px eyeballed offset. */}
+                                <div className="ml-10 flex items-center gap-2">
                                     <Progress
                                         value={entry.percentage}
-                                        className="h-1.5"
+                                        className="h-2"
                                         indicatorClassName={index === 0 ? TONE[tone].bar : 'bg-muted-foreground/30'}
                                     />
                                     <span className="w-10 shrink-0 text-right text-caption tabular-nums text-muted-foreground">
@@ -107,9 +114,9 @@ export function Leaderboard({
                         );
 
                         return (
-                            <motion.div key={entry.id} variants={row} className="space-y-1.5">
+                            <motion.div key={entry.id} variants={row} className={STACK.label}>
                                 {entry.href ? (
-                                    <Link to={entry.href} className="group block space-y-1.5">
+                                    <Link to={entry.href} className={cn('group block', STACK.label)}>
                                         {inner}
                                     </Link>
                                 ) : (

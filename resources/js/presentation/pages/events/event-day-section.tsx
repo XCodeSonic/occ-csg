@@ -149,8 +149,8 @@ export function EventDaySection({
         : CHECK_TYPE_OPTIONS;
 
     return (
-        <div className="space-y-3 rounded-3xl border border-border bg-card p-4">
-            <div className="flex items-center gap-2.5">
+        <div className="space-y-4 rounded-3xl border border-border bg-card p-4">
+            <div className="flex items-center gap-2">
                 <Tile tone="sky" size="sm" variant="soft" Icon={CalendarDays} />
                 <div className="min-w-0">
                     <Text variant="small" className="font-medium text-foreground">
@@ -175,16 +175,16 @@ export function EventDaySection({
                     <div
                         key={session.id}
                         className={cn(
-                            'flex items-center justify-between gap-3 rounded-2xl border border-border p-3',
+                            'flex items-center justify-between gap-4 rounded-2xl border border-border p-4',
                             // Only the running session is filled and washed.
                             // Everything else on the day stays quiet.
                             isOngoing && TONE.emerald.wash,
                         )}
                     >
-                        <div className="flex min-w-0 items-center gap-3">
+                        <div className="flex min-w-0 items-center gap-4">
                             <Tile tone={windowStyle.tone} variant={isOngoing ? 'solid' : 'soft'} Icon={windowStyle.Icon} />
                             <div className="min-w-0">
-                                <div className="flex flex-wrap items-center gap-1.5">
+                                <div className="flex flex-wrap items-center gap-2">
                                     <Text variant="small" className="font-medium text-foreground">
                                         {WINDOW_TYPE_LABEL[session.windowType]} · {CHECK_TYPE_LABEL[session.checkType]}
                                     </Text>
@@ -235,7 +235,7 @@ export function EventDaySection({
                 <button
                     type="button"
                     onClick={() => setIsCreating(true)}
-                    className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-border p-3 text-small font-medium text-muted-foreground transition-colors hover:border-sky-500/40 hover:text-foreground"
+                    className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-border p-4 text-small font-medium text-muted-foreground transition-colors hover:border-sky-500/40 hover:text-foreground"
                 >
                     <Plus className="size-4" />
                     Add session
@@ -256,8 +256,8 @@ export function EventDaySection({
                             Day {day.dayNumber} — {formatDate(day.date)}
                         </DialogDescription>
                     </DialogHeader>
-                    <form onSubmit={handleSubmit} className="space-y-3">
-                        <div className="grid grid-cols-2 gap-3">
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label htmlFor={`sessionWindow-${day.id}`}>Window</Label>
                                 <Select
@@ -301,7 +301,7 @@ export function EventDaySection({
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label htmlFor={`startTime-${day.id}`}>Start time</Label>
                                 <Input
@@ -324,7 +324,7 @@ export function EventDaySection({
                             </div>
                         </div>
 
-                        <div className="space-y-2 rounded-2xl border border-border p-3">
+                        <div className="space-y-2 rounded-2xl border border-border p-4">
                             <Label htmlFor={`graceMinutes-${day.id}`}>Grace period (minutes)</Label>
                             <Text variant="caption">Scans inside this window still count as Present.</Text>
                             <Input
@@ -337,7 +337,7 @@ export function EventDaySection({
                             />
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label htmlFor={`penaltyLate-${day.id}`}>Late penalty</Label>
                                 <Input

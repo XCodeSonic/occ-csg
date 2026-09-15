@@ -36,7 +36,7 @@ export function PasswordStepView({
         <>
             {/* Confirms who's signing in. Given a violet wash so it reads as
                 context rather than as another form field. */}
-            <div className={cn('mb-6 flex items-center gap-3 rounded-2xl border p-3', TONE.violet.wash)}>
+            <div className={cn('mb-6 flex items-center gap-4 rounded-2xl border p-4', TONE.violet.wash)}>
                 <UserAvatar student={account} className="size-11 ring-2 ring-violet-500/20" />
                 <div className="min-w-0 flex-1">
                     <Text className="truncate font-medium leading-tight">
@@ -69,7 +69,7 @@ export function PasswordStepView({
                   gets room to explain itself.
                 */}
                 {isRateLimited && (
-                    <div className={cn('flex items-start gap-3 rounded-2xl border p-3', TONE.red.wash)} role="alert">
+                    <div className={cn('flex items-start gap-4 rounded-2xl border p-4', TONE.red.wash)} role="alert">
                         <Tile tone="red" size="sm" variant="solid" Icon={ShieldAlert} />
                         <div className="min-w-0">
                             <Text variant="small" className="font-medium text-foreground">

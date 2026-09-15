@@ -71,7 +71,7 @@ export function QrPage() {
                         {showError ? (
                             <div
                                 className={cn(
-                                    'flex w-[min(92vw,24rem)] flex-col items-center gap-3 rounded-3xl border p-8 text-center',
+                                    'flex w-[min(92vw,24rem)] flex-col items-center gap-4 rounded-3xl border p-8 text-center',
                                     TONE.red.wash,
                                 )}
                             >
@@ -94,7 +94,7 @@ export function QrPage() {
                               two before it lands; an outline of the thing
                               that's coming reads as "loading".
                             */
-                            <div className="flex w-[min(92vw,24rem)] animate-pulse flex-col items-center gap-5 rounded-[clamp(1.5rem,5vw,2rem)] border border-border bg-card px-6 py-8">
+                            <div className="flex w-[min(92vw,24rem)] animate-pulse flex-col items-center gap-6 rounded-[clamp(1.5rem,5vw,2rem)] border border-border bg-card px-6 py-8">
                                 <div className="size-16 rounded-full bg-muted" />
                                 <div className="h-4 w-40 rounded-full bg-muted" />
                                 <div className="h-3 w-28 rounded-full bg-muted" />

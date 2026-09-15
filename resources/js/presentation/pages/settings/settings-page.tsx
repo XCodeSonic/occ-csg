@@ -1,6 +1,5 @@
 import { Building2, CalendarDays, CalendarRange, ClipboardList, FileBarChart, Receipt, Users } from 'lucide-react';
 
-import { Separator } from '@/components/ui/separator';
 import { useAuthStore } from '@/application/auth/auth.store';
 import { Role } from '@/domain/enums';
 import { Heading, Text } from '@/presentation/components/typography';
@@ -41,21 +40,26 @@ export function SettingsPage() {
             </div>
 
             {canManage || canManageEvents || canManageAcademicYears || canManageDepartments || canManagePenalties || isOfficer ? (
-                <div className="overflow-hidden rounded-lg border border-border">
+                // Same layout as the account page's row list: each
+                // SettingsRow already draws its own card (rounded-2xl
+                // border), so stacking them with space-y-2 is enough.
+                // Wrapping them in a second bordered box (as this used to
+                // do) with <Separator /> lines between clipped every
+                // row's corners square and doubled up the borders into a
+                // grid — this is the fix for that.
+                <div className="space-y-2">
                     {canManage && (
                         <>
-                            <SettingsRow to="/students" icon={<Users className="size-5" />}>
+                            <SettingsRow to="/students" tone="violet" icon={<Users className="size-5" />}>
                                 Students
                             </SettingsRow>
-                            <Separator />
-                            <SettingsRow to="/reports" icon={<FileBarChart className="size-5" />}>
+                            <SettingsRow to="/reports" tone="sky" icon={<FileBarChart className="size-5" />}>
                                 Reports
                             </SettingsRow>
-                            <Separator />
                             {/* Same viewReport gate as the roster/session
                                 reports above (System Admin/CSG Admin/SC
                                 Admin) — see AttendanceSessionPolicy. */}
-                            <SettingsRow to="/attendance-history" icon={<ClipboardList className="size-5" />}>
+                            <SettingsRow to="/attendance-history" tone="emerald" icon={<ClipboardList className="size-5" />}>
                                 Attendance History
                             </SettingsRow>
                         </>
@@ -67,44 +71,30 @@ export function SettingsPage() {
                                 so this is the only "Attendance History" row
                                 they get — the backend scopes it to their
                                 own scans regardless of label. */}
-                            <SettingsRow to="/attendance-history" icon={<ClipboardList className="size-5" />}>
+                            <SettingsRow to="/attendance-history" tone="emerald" icon={<ClipboardList className="size-5" />}>
                                 My Scan History
                             </SettingsRow>
                         </>
                     )}
                     {canManageEvents && (
-                        <>
-                            {canManage && <Separator />}
-                            <SettingsRow to="/events" icon={<CalendarDays className="size-5" />}>
-                                Events
-                            </SettingsRow>
-                        </>
+                        <SettingsRow to="/events" tone="amber" icon={<CalendarDays className="size-5" />}>
+                            Events
+                        </SettingsRow>
                     )}
                     {canManageAcademicYears && (
-                        <>
-                            {(canManage || canManageEvents) && <Separator />}
-                            <SettingsRow to="/academic-years" icon={<CalendarRange className="size-5" />}>
-                                Academic Years
-                            </SettingsRow>
-                        </>
+                        <SettingsRow to="/academic-years" tone="orange" icon={<CalendarRange className="size-5" />}>
+                            Academic Years
+                        </SettingsRow>
                     )}
                     {canManageDepartments && (
-                        <>
-                            {(canManage || canManageEvents || canManageAcademicYears) && <Separator />}
-                            <SettingsRow to="/departments" icon={<Building2 className="size-5" />}>
-                                Departments
-                            </SettingsRow>
-                        </>
+                        <SettingsRow to="/departments" tone="violet" icon={<Building2 className="size-5" />}>
+                            Departments
+                        </SettingsRow>
                     )}
                     {canManagePenalties && (
-                        <>
-                            {(canManage || canManageEvents || canManageAcademicYears || canManageDepartments) && (
-                                <Separator />
-                            )}
-                            <SettingsRow to="/penalties" icon={<Receipt className="size-5" />}>
-                                Penalties
-                            </SettingsRow>
-                        </>
+                        <SettingsRow to="/penalties" tone="red" icon={<Receipt className="size-5" />}>
+                            Penalties
+                        </SettingsRow>
                     )}
                 </div>
             ) : (

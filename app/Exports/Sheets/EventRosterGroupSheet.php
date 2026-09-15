@@ -31,13 +31,36 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
  */
 final class EventRosterGroupSheet implements FromArray, ShouldAutoSize, WithEvents, WithHeadings, WithTitle
 {
-    private const HEADER_FILL = '1E293B'; // slate-800
-    private const BANNER_FILL = '065F46'; // emerald-800
+    private const BANNER_FILL = 'FFFFFF'; // white — plain banner instead of the old solid dark emerald
+    private const BANNER_TEXT = '000000'; // black
     private const SUBTITLE_FILL = 'ECFDF5'; // emerald-50
     private const SUBTITLE_TEXT = '064E3B'; // emerald-900
     private const TOTAL_FILL = 'F1F5F9'; // slate-100
     private const BORDER_COLOR = 'D1D5DB'; // gray-300
     private const BAND_FILL = 'F9FAFB'; // gray-50
+
+    // Student No./Last Name/First Name — Excel's classic Accent 1 blue,
+    // used to be the same dark slate as everything else.
+    private const STATIC_FILL = '4F81BD';
+    private const STATIC_TEXT = 'FFFFFF';
+
+    // Penalty Total — Excel's classic Accent 5 teal, kept distinct from
+    // the blue static columns so the running total still stands out.
+    private const PENALTY_FILL = '4BACC6';
+    private const PENALTY_TEXT = 'FFFFFF';
+
+    /**
+     * One flat colour per day, cycling if there are more than three —
+     * Excel's own built-in Good/Neutral/Bad cell styles, reused here so
+     * each day's whole column block (Day/Window/Time In-Out rows all the
+     * way down) reads as one coloured group at a glance instead of the
+     * old single dark header.
+     */
+    private const DAY_PALETTE = [
+        ['C6EFCE', '006100'], // Excel "Good" — green
+        ['FFEB9C', '9C6500'], // Excel "Neutral" — yellow
+        ['FFC7CE', '9C0006'], // Excel "Bad" — red/pink
+    ];
 
     /** status value => [fill, text color] */
     private const STATUS_COLORS = [
@@ -46,6 +69,11 @@ final class EventRosterGroupSheet implements FromArray, ShouldAutoSize, WithEven
         'absent' => ['FEE2E2', '991B1B'],   // red-100 / red-800
         'excluded' => ['F3F4F6', '374151'], // gray-100 / gray-700
         'pending' => ['F9FAFB', '6B7280'],  // gray-50 / gray-500
+        // Indigo, matching .status-reversed in the roster PDF blade so the
+        // same report reads the same in both formats. Deliberately not red:
+        // a reversed penalty is forgiven, and colouring it like Absent is
+        // exactly the confusion this status exists to remove.
+        'reversed' => ['E0E7FF', '3730A3'], // indigo-100 / indigo-800
     ];
 
     public function __construct(
@@ -216,15 +244,34 @@ final class EventRosterGroupSheet implements FromArray, ShouldAutoSize, WithEven
         // this 3-row block (checkRow) — merging cells only keeps the
         // *top-left* cell's value visible, so each static column's label
         // has to move up to dayRow before merging, or it'd disappear
-        // behind the merge.
-        foreach (array_merge(['A', 'B', 'C'], [$lastColumn]) as $staticColumn) {
+        // behind the merge. Student No./Last/First get the blue static
+        // colour; Penalty Total gets its own teal so it still stands out.
+        foreach (['A', 'B', 'C'] as $staticColumn) {
             $sheet->setCellValue("{$staticColumn}{$dayRow}", $sheet->getCell("{$staticColumn}{$checkRow}")->getValue());
             $sheet->setCellValue("{$staticColumn}{$checkRow}", null);
             $sheet->mergeCells("{$staticColumn}{$dayRow}:{$staticColumn}{$checkRow}");
+            $sheet->getStyle("{$staticColumn}{$dayRow}")->applyFromArray([
+                'font' => ['bold' => true, 'size' => 10, 'color' => ['argb' => 'FF'.self::STATIC_TEXT]],
+                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF'.self::STATIC_FILL]],
+                'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER, 'wrapText' => true],
+            ]);
         }
 
+        $sheet->setCellValue("{$lastColumn}{$dayRow}", $sheet->getCell("{$lastColumn}{$checkRow}")->getValue());
+        $sheet->setCellValue("{$lastColumn}{$checkRow}", null);
+        $sheet->mergeCells("{$lastColumn}{$dayRow}:{$lastColumn}{$checkRow}");
+        $sheet->getStyle("{$lastColumn}{$dayRow}")->applyFromArray([
+            'font' => ['bold' => true, 'size' => 10, 'color' => ['argb' => 'FF'.self::PENALTY_TEXT]],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF'.self::PENALTY_FILL]],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER, 'wrapText' => true],
+        ]);
+
         $col = 4; // column D — the first session column, after Student No./Last/First
-        foreach ($dayColumns as $day) {
+        $paletteSize = count(self::DAY_PALETTE);
+
+        foreach ($dayColumns as $dayIndex => $day) {
+            [$dayFill, $dayText] = self::DAY_PALETTE[$dayIndex % $paletteSize];
+
             $dayStart = $col;
             $dayEnd = $col + $day['span'] - 1;
             $dayStartLetter = Coordinate::stringFromColumnIndex($dayStart);
@@ -234,6 +281,16 @@ final class EventRosterGroupSheet implements FromArray, ShouldAutoSize, WithEven
                 $sheet->mergeCells("{$dayStartLetter}{$dayRow}:{$dayEndLetter}{$dayRow}");
             }
             $sheet->setCellValue("{$dayStartLetter}{$dayRow}", 'Day '.$day['day_number']);
+
+            // The whole day block — Day row, Window row, and the actual
+            // Time In/Out row underneath it — shares one flat colour, so
+            // the block reads as a single coloured group top to bottom
+            // rather than stopping above the real header.
+            $sheet->getStyle("{$dayStartLetter}{$dayRow}:{$dayEndLetter}{$checkRow}")->applyFromArray([
+                'font' => ['bold' => true, 'size' => 11, 'color' => ['argb' => 'FF'.$dayText]],
+                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF'.$dayFill]],
+                'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+            ]);
 
             foreach ($day['windows'] as $window) {
                 $winStart = $col;
@@ -245,19 +302,16 @@ final class EventRosterGroupSheet implements FromArray, ShouldAutoSize, WithEven
                     $sheet->mergeCells("{$winStartLetter}{$windowRow}:{$winEndLetter}{$windowRow}");
                 }
                 $sheet->setCellValue("{$winStartLetter}{$windowRow}", ucfirst($window['window_type']));
+                $sheet->getStyle("{$winStartLetter}{$windowRow}:{$winEndLetter}{$checkRow}")->applyFromArray([
+                    'font' => ['bold' => true, 'size' => 10, 'color' => ['argb' => 'FF'.$dayText]],
+                ]);
+                $sheet->getStyle("{$winStartLetter}{$checkRow}:{$winEndLetter}{$checkRow}")
+                    ->getAlignment()->setWrapText(true);
 
                 $col += $window['span'];
             }
         }
 
-        $sheet->getStyle("A{$dayRow}:{$lastColumn}{$windowRow}")->applyFromArray([
-            'font' => ['bold' => true, 'size' => 10, 'color' => ['argb' => 'FFFFFFFF']],
-            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF0F172A']], // slate-900
-            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
-        ]);
-        $sheet->getStyle("A{$dayRow}:{$lastColumn}{$checkRow}")->applyFromArray([
-            'font' => ['bold' => true, 'color' => ['argb' => 'FFFFFFFF']],
-        ]);
         $sheet->getRowDimension($dayRow)->setRowHeight(22);
         $sheet->getRowDimension($windowRow)->setRowHeight(22);
     }
@@ -274,7 +328,7 @@ final class EventRosterGroupSheet implements FromArray, ShouldAutoSize, WithEven
         $sheet->mergeCells("A1:{$lastColumn}1");
         $sheet->setCellValue('A1', trim(($this->eventName !== '' ? $this->eventName.' — ' : '').'Roster Report'));
         $sheet->getStyle('A1')->applyFromArray([
-            'font' => ['bold' => true, 'size' => 14, 'color' => ['argb' => 'FFFFFFFF']],
+            'font' => ['bold' => true, 'size' => 14, 'color' => ['argb' => 'FF'.self::BANNER_TEXT]],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF'.self::BANNER_FILL]],
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
         ]);
@@ -300,11 +354,28 @@ final class EventRosterGroupSheet implements FromArray, ShouldAutoSize, WithEven
         ]);
     }
 
+    /**
+     * Styles just the static columns (Student No./Last/First, Penalty
+     * Total) on the check-level row. Session columns are styled by
+     * styleDayWindowHeaders() with their day's colour instead — but that
+     * only runs when the event actually has sessions, so this is also
+     * the only place those static columns get coloured when there are
+     * none (hasDayColumns false, lastColumn sits right after C).
+     */
     private function styleHeaderRow($sheet, int $headerRow, string $lastColumn): void
     {
-        $sheet->getStyle("A{$headerRow}:{$lastColumn}{$headerRow}")->applyFromArray([
-            'font' => ['bold' => true, 'size' => 10, 'color' => ['argb' => 'FFFFFFFF']],
-            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF'.self::HEADER_FILL]],
+        $sheet->getStyle("A{$headerRow}:C{$headerRow}")->applyFromArray([
+            'font' => ['bold' => true, 'size' => 10, 'color' => ['argb' => 'FF'.self::STATIC_TEXT]],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF'.self::STATIC_FILL]],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
+                'wrapText' => true,
+            ],
+        ]);
+        $sheet->getStyle("{$lastColumn}{$headerRow}")->applyFromArray([
+            'font' => ['bold' => true, 'size' => 10, 'color' => ['argb' => 'FF'.self::PENALTY_TEXT]],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF'.self::PENALTY_FILL]],
             'alignment' => [
                 'horizontal' => Alignment::HORIZONTAL_CENTER,
                 'vertical' => Alignment::VERTICAL_CENTER,
@@ -355,7 +426,7 @@ final class EventRosterGroupSheet implements FromArray, ShouldAutoSize, WithEven
         $sheet->getStyle("A{$totalRow}:{$lastColumn}{$totalRow}")->applyFromArray([
             'font' => ['bold' => true],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF'.self::TOTAL_FILL]],
-            'borders' => ['top' => ['borderStyle' => Border::BORDER_MEDIUM, 'color' => ['argb' => 'FF'.self::HEADER_FILL]]],
+            'borders' => ['top' => ['borderStyle' => Border::BORDER_MEDIUM, 'color' => ['argb' => 'FF'.self::STATIC_FILL]]],
         ]);
         $sheet->getStyle("{$lastColumn}{$totalRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
     }

@@ -23,7 +23,7 @@ import type { Student } from '@/domain/entities';
 import { Role, ROLE_LABEL } from '@/domain/enums';
 import { cn } from '@/lib/utils';
 import { Heading, Text } from '@/presentation/components/typography';
-import { Tile } from '@/presentation/components/tile';
+import { UserAvatar } from '@/presentation/components/user-avatar';
 import { TONE, type Tone } from '@/presentation/components/tone';
 
 // Same tinted-squircle language as the dashboard: a role gets one
@@ -36,12 +36,6 @@ const ROLE_TONE: Record<Role, Tone> = {
     [Role.Officer]: 'orange',
     [Role.Student]: 'neutral',
 };
-
-function initials(firstName: string, lastName: string): string {
-    const a = firstName.trim().charAt(0);
-    const b = lastName.trim().charAt(0);
-    return (a + b).toUpperCase() || '?';
-}
 
 // System Admin can promote up to csg_admin; CSG Admin cannot reach that
 // high. Mirrors StudentPolicy::assignRole's $assignable sets exactly.
@@ -412,7 +406,7 @@ export function StudentsPage() {
                         </div>
 
                         {preview && (
-                            <div className="space-y-3 rounded-md border border-border p-3">
+                            <div className="space-y-4 rounded-md border border-border p-4">
                                 <Text variant="small" className="font-medium">
                                     Preview — nothing has been saved yet
                                 </Text>
@@ -424,7 +418,7 @@ export function StudentsPage() {
 
                                 <ul className="max-h-72 space-y-2 overflow-y-auto">
                                     {preview.files.map((file) => (
-                                        <li key={file.filename} className="space-y-1 rounded border border-border/60 p-2">
+                                        <li key={file.filename} className="space-y-2 rounded border border-border/60 p-2">
                                             <Text variant="caption" className="font-medium">
                                                 {file.filename}
                                                 {file.valid
@@ -460,7 +454,7 @@ export function StudentsPage() {
                                     ))}
                                 </ul>
 
-                                <div className="flex gap-2 pt-1">
+                                <div className="flex gap-2 pt-2">
                                     <Button
                                         type="button"
                                         size="sm"
@@ -485,14 +479,14 @@ export function StudentsPage() {
                         )}
 
                         {importReport && (
-                            <div className="space-y-2 rounded-md border border-border p-3">
+                            <div className="space-y-2 rounded-md border border-border p-4">
                                 <Text variant="small">
                                     {importReport.imported} of {importReport.totalRows} rows imported across{' '}
                                     {importReport.totalFiles} file{importReport.totalFiles === 1 ? '' : 's'}
                                     {importReport.failed > 0 ? `, ${importReport.failed} failed` : ''}.
                                 </Text>
                                 {importReport.errors.length > 0 && (
-                                    <ul className="space-y-1">
+                                    <ul className="space-y-2">
                                         {importReport.errors.map((error, index) => (
                                             <li key={`${error.filename}-${error.row}-${index}`}>
                                                 <Text variant="caption">
@@ -510,7 +504,7 @@ export function StudentsPage() {
                 </DialogContent>
             </Dialog>
 
-            <div className="space-y-3">
+            <div className="space-y-4">
                 <div className="flex flex-wrap gap-2">
                     <Input
                         placeholder="Search by ID or name…"
@@ -569,7 +563,7 @@ export function StudentsPage() {
                 {rosterPage?.data.map((row) => (
                     <Card key={row.id}>
                         {editingRoleId === row.id ? (
-                            <CardContent className="pt-6">
+                            <CardContent>
                                 <form onSubmit={(e) => handleRoleSubmit(e, row)} className="space-y-4">
                                     <Text variant="small" className="font-medium">
                                         {row.lastName}, {row.firstName} — change role
@@ -648,15 +642,19 @@ export function StudentsPage() {
                                 </form>
                             </CardContent>
                         ) : (
-                            <CardContent className="flex items-center justify-between gap-3 pt-6">
-                                <div className="flex min-w-0 items-center gap-3">
-                                    <Tile tone={ROLE_TONE[row.role]} size="md" variant="soft">
-                                        <span className="text-xs font-bold tabular-nums">
-                                            {initials(row.firstName, row.lastName)}
-                                        </span>
-                                    </Tile>
+                            <CardContent className="flex items-center justify-between gap-4">
+                                <div className="flex min-w-0 items-center gap-4">
+                                    {/* The student's own photo. UserAvatar falls back to the
+                                        same initials this used to draw, tinted with the role
+                                        hue so a roster with no photos on file still reads
+                                        exactly as it did before. */}
+                                    <UserAvatar
+                                        student={row}
+                                        size="lg"
+                                        fallbackClassName={cn('text-xs font-bold', TONE[ROLE_TONE[row.role]].soft)}
+                                    />
                                     <div className="min-w-0">
-                                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                        <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
                                             <Text className="truncate font-medium">
                                                 {row.lastName}, {row.firstName} {row.middleName ?? ''}
                                             </Text>

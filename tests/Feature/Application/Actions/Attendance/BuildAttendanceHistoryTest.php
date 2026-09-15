@@ -166,3 +166,23 @@ it('sorts by name when requested', function () {
     expect($page->items()[0]['last_name'])->toBe('Alonzo')
         ->and($page->items()[1]['last_name'])->toBe('Zamora');
 });
+
+it('carries the student photo url so the ledger can render a real avatar', function () {
+    $officer = historyOfficer();
+    $event = EventModel::create(['name' => 'Intrams', 'created_by' => $officer->id]);
+    $session = historySession($event);
+
+    $withPhoto = historyStudent('2020400050', 'CCS', ['photo_path' => 'photos/2020400050.jpg']);
+    $withoutPhoto = historyStudent('2020400051');
+
+    historyRecord($withPhoto, $session, $officer);
+    historyRecord($withoutPhoto, $session, $officer);
+
+    $rows = collect((new BuildAttendanceHistory)([])->items())->keyBy('student_number');
+
+    expect($rows['2020400050']['photo_url'])->toBe('/storage/photos/2020400050.jpg')
+        // Null rather than absent — UserAvatar keys its initials fallback
+        // off this being null, so the field has to be present either way.
+        ->and($rows['2020400051'])->toHaveKey('photo_url')
+        ->and($rows['2020400051']['photo_url'])->toBeNull();
+});

@@ -15,7 +15,7 @@ use Symfony\Component\HttpFoundation\Response;
  * Deliberately conservative: this app is a same-origin SPA (see
  * routes/web.php's catch-all serving the same `app` view react-router
  * handles client-side) with no third-party embeds, trackers, or CDN
- * dependencies — Instrument Sans is bundled by Vite and served from this
+ * dependencies — Inter is bundled by Vite and served from this
  * origin (see resources/js/app.tsx), not loaded from Google Fonts. If a
  * third-party script/font/embed is ever added, its origin needs to be
  * added to the relevant directive below or it will be silently blocked
@@ -57,7 +57,7 @@ class AddSecurityHeaders
         $directives = [
             "default-src 'self'",
             "img-src 'self' data:",
-            // Instrument Sans is now bundled by Vite and served from
+            // Inter is now bundled by Vite and served from
             // this origin — no external font-src origin needed.
             "font-src 'self' data:",
             "style-src 'self' 'unsafe-inline'",

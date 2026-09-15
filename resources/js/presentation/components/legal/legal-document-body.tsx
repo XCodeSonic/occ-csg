@@ -11,7 +11,7 @@ export function LegalDocumentBody({ document }: { document: LegalDocument }) {
         <div className="space-y-4">
             <Text variant="caption">{document.updated}</Text>
             {document.sections.map((section) => (
-                <div key={section.heading} className="space-y-1">
+                <div key={section.heading} className="space-y-2">
                     <Text as="h3" className="font-medium">
                         {section.heading}
                     </Text>

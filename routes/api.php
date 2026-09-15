@@ -22,6 +22,8 @@ use App\Http\Controllers\Reports\MasterReportGenerationController;
 use App\Http\Controllers\Reports\RosterReportGenerationController;
 use App\Http\Controllers\Semesters\SemesterController;
 use App\Http\Controllers\Sessions\EndSessionController;
+use App\Http\Controllers\Sessions\RecentScansController;
+use App\Http\Controllers\Sessions\ReverseScanController;
 use App\Http\Controllers\Sessions\ScanController;
 use App\Http\Controllers\Sessions\SessionController;
 use App\Http\Controllers\Sessions\SessionReportController;
@@ -50,6 +52,24 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'show']);
 
         Route::post('/sessions/{session}/scan', [ScanController::class, 'store']);
+
+        // The scanning screen's own two companions to the scan endpoint,
+        // both scoped to a single session on purpose (see BuildRecentScans):
+        //  - GET  .../recent-scans        the last few badges read into
+        //    *this* session, so an officer never sees rows from another
+        //    session or another event in the strip they're about to
+        //    reverse something from.
+        //  - POST .../records/{record}/reverse  undo one of those scans
+        //    when the QR turns out to belong to someone who isn't the
+        //    person holding it. The record is deleted (back to pending,
+        //    re-scannable by its real owner) and an audit row is written
+        //    — see ReverseAttendanceRecord for why deletion, not a flag.
+        // {record} is bound independently of {session}, so the action
+        // re-checks that the record actually belongs to the session
+        // rather than trusting the URL.
+        Route::get('/sessions/{session}/recent-scans', [RecentScansController::class, 'index']);
+        Route::post('/sessions/{session}/records/{record}/reverse', [ReverseScanController::class, 'store']);
+
         Route::post('/sessions/{session}/start', [StartSessionController::class, 'store']);
         Route::post('/sessions/{session}/end', [EndSessionController::class, 'store']);
         Route::get('/sessions/{session}/report', [SessionReportController::class, 'show']);

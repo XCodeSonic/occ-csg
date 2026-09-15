@@ -19,6 +19,7 @@ import { useMyEventAttendance } from '@/application/events/use-my-event-attendan
 import type { MyEventAttendance } from '@/infrastructure/events/events.repository.http';
 import { AttendanceStatus, CHECK_TYPE_LABEL, CheckType, WINDOW_TYPE_LABEL, WindowType } from '@/domain/enums';
 import { cn } from '@/lib/utils';
+import { CARD, CHIP, GAP, STACK } from '@/presentation/components/spacing';
 import { Text } from '@/presentation/components/typography';
 
 /**
@@ -174,8 +175,8 @@ export function AttendanceStreak({ event, isLoading }: { event: MyEventAttendanc
 
     if (isLoading) {
         return (
-            <Card>
-                <CardContent className="pt-6">
+            <Card className={CARD.root}>
+                <CardContent className={CARD.inset}>
                     <Text variant="small">Loading your streak…</Text>
                 </CardContent>
             </Card>
@@ -187,8 +188,8 @@ export function AttendanceStreak({ event, isLoading }: { event: MyEventAttendanc
     const resolvedCount = sessions.filter((s) => s.status !== 'upcoming').length;
 
     return (
-        <Card className="overflow-hidden">
-            <CardHeader className="flex-row items-center justify-between gap-2 pb-3">
+        <Card className={cn('overflow-hidden', CARD.root)}>
+            <CardHeader className={cn(CARD.inset, 'flex-row items-center justify-between', GAP.grid)}>
                 <div className="min-w-0">
                     <CardDescription>Attendance streak</CardDescription>
                     <Text variant="small" className="truncate font-medium text-foreground">
@@ -197,18 +198,20 @@ export function AttendanceStreak({ event, isLoading }: { event: MyEventAttendanc
                 </div>
 
                 {longest > 1 && (
-                    <span className="flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-caption font-medium text-muted-foreground">
-                        <Trophy className="size-3.5 text-amber-500" />
+                    <span className={cn(CHIP, 'border text-muted-foreground')}>
+                        <Trophy className="size-4 text-amber-500" />
                         Best {longest}
                     </span>
                 )}
             </CardHeader>
 
-            <CardContent className="space-y-4">
-                <div className="flex items-center gap-3.5">
+            <CardContent className={cn(CARD.inset, STACK.group)}>
+                <div className={cn('flex items-center', GAP.grid)}>
                     <div
                         className={cn(
-                            'flex size-16 shrink-0 flex-col items-center justify-center gap-0.5 rounded-2xl',
+                            // gap-1 (4px) is the half-step: icon stacked over its own
+                            // numeral inside a 64px box. Same rule the Tile follows.
+                            'flex size-16 shrink-0 flex-col items-center justify-center gap-1 rounded-2xl',
                             current > 0
                                 ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30'
                                 : 'bg-muted text-muted-foreground',
@@ -228,12 +231,15 @@ export function AttendanceStreak({ event, isLoading }: { event: MyEventAttendanc
                 {sessions.length === 0 ? (
                     <Text variant="small">No sessions scheduled yet for this event.</Text>
                 ) : (
-                    <div className="relative -mx-1 -mt-2">
+                    // -mx-1/px-1 is bleed, not spacing: it gives the window badge
+                    // that overhangs each pip's top-right corner room to sit
+                    // outside the pip without being clipped by the scroller.
+                    <div className="relative -mx-1">
                         <div
-                            className="flex snap-x snap-mandatory gap-2.5 overflow-x-auto scroll-smooth px-1 pt-3 pb-1 [&::-webkit-scrollbar]:hidden"
+                            className="flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth px-1 pt-2 pb-2 [&::-webkit-scrollbar]:hidden"
                             style={{ scrollbarWidth: 'none' }}
                         >
-                            <motion.div variants={container} initial="hidden" animate="show" className="flex gap-2.5">
+                            <motion.div variants={container} initial="hidden" animate="show" className="flex gap-4">
                                 {sessions.map((session) => {
                                     const style = STATUS_STYLE[session.status];
                                     const { Icon } = style;
@@ -246,7 +252,7 @@ export function AttendanceStreak({ event, isLoading }: { event: MyEventAttendanc
                                             key={session.id}
                                             variants={pip}
                                             title={`Day ${session.dayNumber} · ${session.windowCheckLabel} · ${style.label}`}
-                                            className="flex shrink-0 snap-start flex-col items-center gap-1.5"
+                                            className="flex shrink-0 snap-start flex-col items-center gap-2"
                                         >
                                             <div className="relative">
                                                 <div className={cn('flex size-12 items-center justify-center rounded-2xl', style.chip)}>
@@ -254,11 +260,11 @@ export function AttendanceStreak({ event, isLoading }: { event: MyEventAttendanc
                                                 </div>
                                                 <div
                                                     className={cn(
-                                                        'absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full border-2 border-card',
+                                                        'absolute -top-2 -right-2 flex size-6 items-center justify-center rounded-full border-2 border-card',
                                                         windowStyle.badge,
                                                     )}
                                                 >
-                                                    <WindowIcon className="size-3" />
+                                                    <WindowIcon className="size-3.5" />
                                                 </div>
                                             </div>
                                             <Text variant="caption" className="leading-none font-medium whitespace-nowrap text-foreground">
@@ -279,27 +285,6 @@ export function AttendanceStreak({ event, isLoading }: { event: MyEventAttendanc
                     </div>
                 )}
 
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t pt-3 text-caption text-muted-foreground">
-                    {LEGEND_ORDER.map((status) => (
-                        <span key={status} className="flex items-center gap-1.5">
-                            <span className={cn('size-1.5 rounded-full', STATUS_STYLE[status].dot)} />
-                            {STATUS_STYLE[status].label}
-                        </span>
-                    ))}
-                </div>
-
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-caption text-muted-foreground">
-                    {(Object.values(WindowType) as WindowType[]).map((windowType) => {
-                        const { Icon } = WINDOW_STYLE[windowType];
-
-                        return (
-                            <span key={windowType} className="flex items-center gap-1">
-                                <Icon className="size-3" />
-                                {WINDOW_TYPE_LABEL[windowType]}
-                            </span>
-                        );
-                    })}
-                </div>
             </CardContent>
         </Card>
     );

@@ -7,6 +7,7 @@ import { TONE } from '@/presentation/components/tone';
 import type { RememberedAccount } from '@/application/auth/remembered-accounts.store';
 import { ROLE_LABEL } from '@/domain/enums';
 import { cn } from '@/lib/utils';
+import { CHIP } from '@/presentation/components/spacing';
 
 interface AccountPickerRowProps {
     account: RememberedAccount;
@@ -32,7 +33,7 @@ function AccountPickerRow({ account, managing, onSelect, onForget }: AccountPick
                 <Text className="truncate font-medium leading-tight">
                     {account.firstName} {account.lastName}
                 </Text>
-                <span className={cn('mt-1 inline-block rounded-full px-2 py-0.5 text-caption font-medium', TONE.violet.chip)}>
+                <span className={cn('mt-2 inline-flex', CHIP, TONE.violet.chip)}>
                     {ROLE_LABEL[account.role]}
                 </span>
             </div>
@@ -41,7 +42,7 @@ function AccountPickerRow({ account, managing, onSelect, onForget }: AccountPick
 
     if (managing) {
         return (
-            <div className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card p-3">
+            <div className="flex w-full items-center gap-4 rounded-2xl border border-border bg-card p-4">
                 {body}
                 <button
                     type="button"
@@ -59,7 +60,7 @@ function AccountPickerRow({ account, managing, onSelect, onForget }: AccountPick
         <button
             type="button"
             onClick={() => onSelect(account)}
-            className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card p-3 transition-all hover:border-violet-500/30 hover:shadow-md hover:shadow-violet-500/10 active:scale-[0.99]"
+            className="flex w-full items-center gap-4 rounded-2xl border border-border bg-card p-4 transition-all hover:border-violet-500/30 hover:shadow-md hover:shadow-violet-500/10 active:scale-[0.99]"
         >
             {body}
             <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
@@ -91,7 +92,7 @@ export function AccountPickerView({ accounts, onSelect, onForget, onUseDifferent
                     aria-label={managing.isManaging ? 'Done managing accounts' : 'Manage saved accounts'}
                     aria-pressed={managing.isManaging}
                     className={cn(
-                        'flex h-8 shrink-0 items-center justify-center rounded-xl px-2.5 text-small font-medium transition-colors',
+                        'flex h-8 shrink-0 items-center justify-center rounded-xl px-2 text-small font-medium transition-colors',
                         managing.isManaging ? TONE.violet.solid : 'bg-muted text-muted-foreground hover:text-foreground',
                     )}
                 >
@@ -117,7 +118,7 @@ export function AccountPickerView({ accounts, onSelect, onForget, onUseDifferent
             <button
                 type="button"
                 onClick={onUseDifferentAccount}
-                className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-border p-3 text-small font-medium text-muted-foreground transition-colors hover:border-violet-500/40 hover:text-foreground"
+                className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-border p-4 text-small font-medium text-muted-foreground transition-colors hover:border-violet-500/40 hover:text-foreground"
             >
                 <UserPlus className="size-4" />
                 Use a different account

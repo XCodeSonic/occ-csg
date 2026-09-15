@@ -191,11 +191,11 @@ export function AcademicYearsPage() {
 
             {!isLoading && academicYears?.length === 0 && <Text variant="small">No academic years yet.</Text>}
 
-            <div className="space-y-3">
+            <div className="space-y-4">
                 {academicYears?.map((year) => (
                     <Card key={year.id}>
                         {editingId === year.id ? (
-                            <CardContent className="pt-6">
+                            <CardContent>
                                 <form onSubmit={(event) => handleEditSubmit(event, year.id)} className="space-y-4">
                                     <div className="space-y-2">
                                         <Label htmlFor={`editName-${year.id}`}>Name</Label>
@@ -237,8 +237,8 @@ export function AcademicYearsPage() {
                                 </form>
                             </CardContent>
                         ) : (
-                            <CardContent className="flex items-center justify-between gap-3 pt-6">
-                                <div className="flex min-w-0 items-center gap-3">
+                            <CardContent className="flex items-center justify-between gap-4">
+                                <div className="flex min-w-0 items-center gap-4">
                                     <Tile
                                         tone={year.isActive ? 'emerald' : 'neutral'}
                                         size="md"

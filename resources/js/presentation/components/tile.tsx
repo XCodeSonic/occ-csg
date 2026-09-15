@@ -16,17 +16,30 @@ import { TONE, type Tone } from '@/presentation/components/tone';
  * Sizes are deliberately few. The radius grows with the box (xl → 2xl) so
  * the corner curve stays visually constant instead of looking tighter on
  * the big tiles.
+ *
+ * Every size is a multiple of 8 — 32 / 48 / 64 (see spacing.ts). `md` used
+ * to be 44px, which put a half-pixel of drift into every row it sat in:
+ * a 44px tile can't share an edge with anything else on the scale, so the
+ * text beside it never quite lined up with the text in the row above. At
+ * 48 it's also exactly the tap-target height, so a Tile in a list row now
+ * *is* the row's height rather than something the row has to pad around.
  */
 const TILE_SIZE = {
     sm: 'size-8 rounded-xl',
-    md: 'size-11 rounded-2xl',
+    md: 'size-12 rounded-2xl',
     lg: 'size-16 rounded-2xl',
 } as const;
 
+/**
+ * Each icon is half its box — 16 in 32, 24 in 48, 32 in 64. Glyph sizes
+ * follow the type scale rather than the spacing scale, but holding one
+ * ratio across all three sizes is what keeps a small tile and a large one
+ * looking like the same object rather than two different ones.
+ */
 const TILE_ICON = {
     sm: 'size-4',
-    md: 'size-5',
-    lg: 'size-6',
+    md: 'size-6',
+    lg: 'size-8',
 } as const;
 
 export function Tile({
@@ -47,7 +60,10 @@ export function Tile({
     return (
         <span
             className={cn(
-                'flex shrink-0 flex-col items-center justify-center gap-0.5',
+                // gap-1 (4px) is the documented half-step: this is the icon
+                // stacked over its own numeral inside a 48px box, where the
+                // 8px base unit would be wider than the box can carry.
+                'flex shrink-0 flex-col items-center justify-center gap-1',
                 TILE_SIZE[size],
                 TONE[tone][variant],
                 className,
@@ -76,6 +92,7 @@ export function StatTile({
     tone,
     variant = 'soft',
     format,
+    size = 'md',
     className,
 }: {
     label: ReactNode;
@@ -85,21 +102,33 @@ export function StatTile({
     /** `solid` promotes this stat to the card's focal point. Use once per card. */
     variant?: 'solid' | 'soft';
     format?: (n: number) => string;
+    /** `sm` shrinks the icon tile and padding for tight, multi-up rows (e.g. 3 stats sharing a mobile card). */
+    size?: 'sm' | 'md';
     className?: string;
 }) {
     return (
         <div
             className={cn(
-                'flex min-w-0 items-center gap-3 rounded-2xl border bg-card p-3 sm:p-3.5',
+                // 16px padding, 16px tile-to-text. With a 48px `md` tile that
+                // puts the whole stat at 80px tall — 10 units, so two of them
+                // side by side line up with anything else on the page.
+                'flex min-w-0 items-center gap-4 rounded-2xl border bg-card p-4',
+                // The tight variant drops to the 8px step throughout, landing
+                // at 48px with its 32px `sm` tile.
+                size === 'sm' && 'gap-2 p-2',
                 variant === 'solid' && TONE[tone].wash,
                 className,
             )}
         >
-            <Tile tone={tone} size="md" variant={variant} Icon={Icon} />
+            <Tile tone={tone} size={size === 'sm' ? 'sm' : 'md'} variant={variant} Icon={Icon} />
+            {/* min-w-0 lets this column shrink inside a tight flex/grid row, but only
+                the label truncates — the number must never lose digits, so it gets
+                its own line with no truncation and no wrapping. */}
             <div className="min-w-0">
-                <span className="block truncate text-h3 leading-none font-semibold tabular-nums text-foreground">
+                <span className="block text-h3 leading-none font-semibold tabular-nums whitespace-nowrap text-foreground">
                     <AnimatedCounter value={value} format={format} />
                 </span>
+                {/* mt-1 (4px): half-step, figure to its own caption inside one text block. */}
                 <Text variant="caption" className="mt-1 block truncate leading-none">
                     {label}
                 </Text>

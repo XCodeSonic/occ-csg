@@ -279,7 +279,7 @@ export function LoginPage() {
                 {/* Same move as PasswordStepView: the lockout is a notice in
                     its own right, not a label crammed onto the button. */}
                 {isFormViewRateLimited && (
-                    <div className={cn('flex items-start gap-3 rounded-2xl border p-3', TONE.red.wash)} role="alert">
+                    <div className={cn('flex items-start gap-4 rounded-2xl border p-4', TONE.red.wash)} role="alert">
                         <Tile tone="red" size="sm" variant="solid" Icon={ShieldAlert} />
                         <div className="min-w-0">
                             <Text variant="small" className="font-medium text-foreground">
@@ -294,7 +294,7 @@ export function LoginPage() {
                     {login.isPending ? 'Signing in…' : 'Sign in'}
                 </Button>
 
-                <div className="rounded-2xl bg-muted p-3">
+                <div className="rounded-2xl bg-muted p-4">
                     <Text variant="caption" className="text-center">
                         First time signing in? Your default password was given to you by your department.
                     </Text>

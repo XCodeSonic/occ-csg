@@ -108,8 +108,8 @@ export function MasterReportPage() {
     }
 
     return (
-        <div className="mx-auto max-w-2xl space-y-6">
-            <div className="flex items-center gap-3">
+        <div className="mx-auto max-w-2xl space-y-8">
+            <div className="flex items-center gap-4">
                 <FileBarChart className="size-6 text-muted-foreground" />
                 <div>
                     <Heading level="h1">Reports</Heading>
@@ -154,7 +154,7 @@ export function MasterReportPage() {
                             </CardContent>
                         </Card>
                     ) : (
-                        <div className="space-y-3">
+                        <div className="space-y-4">
                             {data.events.map((event) => {
                                 const isSelected = selectedEventIds.includes(event.id);
 
@@ -163,8 +163,8 @@ export function MasterReportPage() {
                                         key={event.id}
                                         className={`transition-colors ${isSelected ? 'border-primary bg-accent/40' : ''}`}
                                     >
-                                        <CardHeader className="flex-row items-center justify-between gap-3 space-y-0">
-                                            <label className="flex flex-1 cursor-pointer items-center gap-3">
+                                        <CardHeader className="flex-row items-center justify-between gap-4 space-y-0">
+                                            <label className="flex flex-1 cursor-pointer items-center gap-4">
                                                 <input
                                                     type="checkbox"
                                                     className="size-4 shrink-0 accent-primary"
@@ -185,7 +185,7 @@ export function MasterReportPage() {
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
-                                                className="shrink-0 gap-1 text-muted-foreground"
+                                                className="shrink-0 gap-2 text-muted-foreground"
                                                 onClick={() => navigate(`/events/${event.id}/report`)}
                                             >
                                                 View
@@ -279,7 +279,7 @@ export function MasterReportPage() {
                                             </Button>
                                         </div>
                                     ) : (
-                                        <div className="flex flex-col gap-3 sm:flex-row">
+                                        <div className="flex flex-col gap-4 sm:flex-row">
                                             <Button
                                                 className="flex-1 gap-2"
                                                 onClick={() => handleGenerate('xlsx')}

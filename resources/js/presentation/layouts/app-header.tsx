@@ -7,6 +7,7 @@ import type { Student } from '@/domain/entities';
 import { ROLE_LABEL } from '@/domain/enums';
 import { TONE } from '@/presentation/components/tone';
 import { cn } from '@/lib/utils';
+import { CHIP } from '@/presentation/components/spacing';
 
 export function AppHeader({ student }: { student: Student }) {
     const location = useLocation();
@@ -34,7 +35,7 @@ export function AppHeader({ student }: { student: Student }) {
     }
 
     return (
-        <header className="flex h-16 items-center gap-1 border-b border-border px-3 sm:px-6">
+        <header className="flex h-16 items-center gap-2 border-b border-border px-4 sm:px-6">
             {!isHome && (
                 <button
                     type="button"
@@ -47,7 +48,7 @@ export function AppHeader({ student }: { student: Student }) {
             )}
             <Link
                 to="/account"
-                className="-mx-2 flex min-w-0 flex-1 items-center gap-3 rounded-2xl px-2 py-1.5 transition-colors hover:bg-muted"
+                className="-mx-2 flex min-w-0 flex-1 items-center gap-4 rounded-2xl px-2 py-2 transition-colors hover:bg-muted"
             >
                 {/* Violet ring, matching the account screen and the ID card —
                     the three places that are about who you are. */}
@@ -56,11 +57,11 @@ export function AppHeader({ student }: { student: Student }) {
                     <Text className="truncate leading-tight font-medium">
                         {student.firstName} {student.lastName}
                     </Text>
-                    <span className={cn('mt-0.5 inline-block rounded-full px-2 py-0.5 text-caption font-medium', TONE.violet.chip)}>
+                    <span className={cn('mt-1 inline-flex', CHIP, TONE.violet.chip)}>
                         {ROLE_LABEL[student.role]}
                     </span>
                 </div>
-                <ChevronRight className="ml-1 size-4 shrink-0 text-muted-foreground" />
+                <ChevronRight className="ml-2 size-4 shrink-0 text-muted-foreground" />
             </Link>
         </header>
     );

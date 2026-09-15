@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Clock, RotateCcw, Wallet, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
+import { AvatarBadge } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -19,6 +20,7 @@ import { cn, formatCurrency, formatDate, formatScannedAt } from '@/lib/utils';
 import { Heading, Text } from '@/presentation/components/typography';
 import { StatTile, Tile } from '@/presentation/components/tile';
 import { TONE } from '@/presentation/components/tone';
+import { UserAvatar } from '@/presentation/components/user-avatar';
 
 const PER_PAGE = 20;
 
@@ -113,7 +115,7 @@ export function PenaltiesPage() {
                 </Text>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-4">
                 {/* Below `sm`, the search bar stays full-width but the
                     three selects pack into a 2-col grid (department+event
                     on one row, status alone on the next) instead of each
@@ -192,7 +194,7 @@ export function PenaltiesPage() {
 
                 {ledgerPage && (
                     <Card className={cn('border', TONE.red.wash)}>
-                        <CardContent className="flex flex-col gap-4 pt-6 sm:flex-row sm:items-center sm:justify-between">
+                        <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                             <div className="flex items-center gap-4">
                                 <Tile tone="red" size="lg" variant="solid" Icon={Wallet} />
                                 <div>
@@ -205,10 +207,10 @@ export function PenaltiesPage() {
                             {/* Grid on mobile so three stats stay legible instead
                                 of cramming into one row; from `sm` up they sit
                                 inline, right-aligned next to the total. */}
-                            <div className="grid grid-cols-3 gap-2 sm:flex sm:gap-2.5">
-                                <StatTile label="Absent" value={ledgerPage.summary.absentCount} Icon={XCircle} tone="red" />
-                                <StatTile label="Late" value={ledgerPage.summary.lateCount} Icon={Clock} tone="amber" />
-                                <StatTile label="Penalties" value={ledgerPage.summary.count} Icon={Wallet} tone="neutral" />
+                            <div className="grid grid-cols-3 gap-2 sm:flex sm:gap-2">
+                                <StatTile size="sm" label="Absent" value={ledgerPage.summary.absentCount} Icon={XCircle} tone="red" />
+                                <StatTile size="sm" label="Late" value={ledgerPage.summary.lateCount} Icon={Clock} tone="amber" />
+                                <StatTile size="sm" label="Penalties" value={ledgerPage.summary.count} Icon={Wallet} tone="neutral" />
                             </div>
                         </CardContent>
                     </Card>
@@ -248,15 +250,24 @@ export function PenaltiesPage() {
                                 </form>
                             </CardContent>
                         ) : (
-                            <CardContent className="space-y-3">
-                                <div className="flex items-start justify-between gap-3">
-                                    <div className="flex min-w-0 items-center gap-3">
-                                        <Tile
-                                            tone={row.isReversed ? 'neutral' : 'red'}
-                                            size="md"
-                                            variant="soft"
-                                            Icon={row.isReversed ? RotateCcw : Wallet}
-                                        />
+                            <CardContent className="space-y-4">
+                                <div className="flex items-start justify-between gap-4">
+                                    <div className="flex min-w-0 items-center gap-4">
+                                        {/* Student's own photo instead of a generic wallet icon — a
+                                            reversed row keeps a small badge in the corner so that
+                                            status is still visible at a glance without the icon
+                                            swap we used to do. */}
+                                        <UserAvatar
+                                            student={row}
+                                            size="lg"
+                                            className={cn(row.isReversed && 'opacity-60 grayscale')}
+                                        >
+                                            {row.isReversed && (
+                                                <AvatarBadge className="bg-muted-foreground">
+                                                    <RotateCcw />
+                                                </AvatarBadge>
+                                            )}
+                                        </UserAvatar>
                                         <div className="min-w-0">
                                             <Text className="truncate font-medium">
                                                 {row.lastName}, {row.firstName}
@@ -277,7 +288,7 @@ export function PenaltiesPage() {
                                             {formatCurrency(row.amount)}
                                         </span>
                                         {row.isReversed && (
-                                            <Badge variant="outline" className="mt-1 text-muted-foreground">
+                                            <Badge variant="outline" className="mt-2 text-muted-foreground">
                                                 Reversed
                                             </Badge>
                                         )}
@@ -321,7 +332,7 @@ export function PenaltiesPage() {
                                         {row.reversalReason ? ` — “${row.reversalReason}”` : ''}
                                     </Text>
                                 ) : (
-                                    <div className="pt-1">
+                                    <div className="pt-2">
                                         <Button size="sm" variant="outline" onClick={() => startReversing(row)}>
                                             Reverse
                                         </Button>

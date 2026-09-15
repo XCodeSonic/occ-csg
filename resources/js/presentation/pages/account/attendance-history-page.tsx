@@ -20,6 +20,7 @@ import { Heading, Text } from '@/presentation/components/typography';
 import { EmptyState, ListSkeleton } from '@/presentation/components/empty-state';
 import { Tile } from '@/presentation/components/tile';
 import { TONE, type Tone } from '@/presentation/components/tone';
+import { CHIP } from '@/presentation/components/spacing';
 
 const ALL = 'all';
 
@@ -137,7 +138,7 @@ export function AttendanceHistoryPage() {
     }, [filteredEntries, penaltiesBySession, visibleUnmatchedPenalties]);
 
     return (
-        <div className="mx-auto max-w-2xl space-y-6">
+        <div className="mx-auto max-w-2xl space-y-8">
             <div>
                 <Heading level="h1">Attendance & Penalties</Heading>
                 <Text variant="small">Your Present / Late / Absent record, with any penalty shown against the session it came from.</Text>
@@ -150,7 +151,7 @@ export function AttendanceHistoryPage() {
                 />
             )}
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-4">
                 <Select value={eventFilter} onValueChange={setEventFilter}>
                     <SelectTrigger className="w-full">
                         <SelectValue placeholder="Event" />
@@ -202,8 +203,8 @@ export function AttendanceHistoryPage() {
                     const windowStyle = WINDOW_STYLE[entry.windowType] ?? { Icon: Sun, tone: 'neutral' as Tone };
 
                     return (
-                        <div key={entry.sessionId} className="space-y-2 rounded-2xl border border-border bg-card p-3">
-                            <div className="flex items-start gap-3">
+                        <div key={entry.sessionId} className="space-y-2 rounded-2xl border border-border bg-card p-4">
+                            <div className="flex items-start gap-4">
                                 {/* The window tile is filled in the status's hue,
                                     not the window's — on this screen the thing
                                     you're scanning for is your result, and one
@@ -212,7 +213,7 @@ export function AttendanceHistoryPage() {
                                 <Tile tone={STATUS_TONE[status] ?? 'neutral'} variant="solid" Icon={windowStyle.Icon} />
 
                                 <div className="min-w-0 flex-1">
-                                    <div className="flex flex-wrap items-center gap-1.5">
+                                    <div className="flex flex-wrap items-center gap-2">
                                         <Text variant="small" className="min-w-0 truncate font-medium text-foreground">
                                             {entry.eventName}
                                         </Text>
@@ -228,7 +229,7 @@ export function AttendanceHistoryPage() {
                                         {formatTimeOfDay(entry.startTime)}–{formatTimeOfDay(entry.endTime)}
                                     </Text>
                                     {entry.scannedAt && (
-                                        <Text variant="caption" className="mt-1">
+                                        <Text variant="caption" className="mt-2">
                                             {formatScannedAt(entry.scannedAt)}
                                             {entry.scannedByName ? ` · by ${entry.scannedByName}` : ''}
                                         </Text>
@@ -237,7 +238,7 @@ export function AttendanceHistoryPage() {
                             </div>
 
                             {penalties.length > 0 && (
-                                <div className={cn('space-y-1.5 rounded-xl border p-2.5', TONE.red.wash)}>
+                                <div className={cn('space-y-2 rounded-xl border p-2', TONE.red.wash)}>
                                     {penalties.map((penalty) => (
                                         <PenaltyDetail key={penalty.id} penalty={penalty} />
                                     ))}
@@ -253,7 +254,7 @@ export function AttendanceHistoryPage() {
                     <Text variant="caption">Other penalties (not tied to a session above)</Text>
                     <div className="space-y-2">
                         {visibleUnmatchedPenalties.map((penalty) => (
-                            <div key={penalty.id} className="space-y-1.5 rounded-2xl border border-border bg-card p-3">
+                            <div key={penalty.id} className="space-y-2 rounded-2xl border border-border bg-card p-4">
                                 <Text className="font-medium">{penalty.eventName}</Text>
                                 <Text variant="small">
                                     Day {penalty.dayNumber} — {formatDate(penalty.date)} · {WINDOW_TYPE_LABEL[penalty.windowType]} ·{' '}
@@ -275,7 +276,7 @@ export function AttendanceHistoryPage() {
 // than just seeing a lump total.
 function PenaltyDetail({ penalty }: { penalty: MyPenaltyEntry }) {
     return (
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
                 <Text variant="small" className={cn('text-foreground', penalty.isReversed && 'line-through text-muted-foreground')}>
                     {penalty.reason}
@@ -294,7 +295,7 @@ function PenaltyDetail({ penalty }: { penalty: MyPenaltyEntry }) {
                     {formatCurrency(penalty.amount)}
                 </span>
                 {penalty.isReversed && (
-                    <span className={cn('rounded-full px-2 py-0.5 text-caption font-medium', TONE.neutral.chip)}>Reversed</span>
+                    <span className={cn(CHIP, TONE.neutral.chip)}>Reversed</span>
                 )}
             </div>
         </div>
@@ -311,7 +312,7 @@ function BalanceBanner({ total, label }: { total: number; label: string }) {
     const tone: Tone = owes ? 'red' : 'emerald';
 
     return (
-        <div className={cn('flex items-center gap-3.5 rounded-2xl border p-4', TONE[tone].wash)}>
+        <div className={cn('flex items-center gap-4 rounded-2xl border p-4', TONE[tone].wash)}>
             <Tile tone={tone} size="lg" variant="solid" Icon={owes ? Wallet : ReceiptText} />
             <div className="min-w-0">
                 <Text variant="caption">{label}</Text>

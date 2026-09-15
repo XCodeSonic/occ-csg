@@ -72,6 +72,7 @@ export interface PenaltyLedgerEntry {
     studentNumber: string;
     lastName: string;
     firstName: string;
+    photoUrl: string | null;
     departmentId: number;
     departmentCode: string | null;
     amount: number;
@@ -128,6 +129,7 @@ interface RawPenaltyLedgerEntry {
     student_number: string;
     last_name: string;
     first_name: string;
+    photo_url: string | null;
     department_id: number;
     department_code: string | null;
     amount: number;
@@ -169,6 +171,7 @@ function toPenaltyLedgerEntry(raw: RawPenaltyLedgerEntry): PenaltyLedgerEntry {
         studentNumber: raw.student_number,
         lastName: raw.last_name,
         firstName: raw.first_name,
+        photoUrl: raw.photo_url ?? null,
         departmentId: raw.department_id,
         departmentCode: raw.department_code,
         amount: raw.amount,

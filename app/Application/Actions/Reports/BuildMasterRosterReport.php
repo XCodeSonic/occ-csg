@@ -74,12 +74,35 @@ final class BuildMasterRosterReport
             fn (int $sessionId) => [$sessionId => Exclusion::excludedStudentIdsForSession($sessionsById[$sessionId])]
         );
 
-        $penaltyTotals = AttendancePenalty::whereIn('session_id', $sessionIds)
+        // One fetch feeding both the money view and the reversed-state
+        // view, so the two can't disagree about the same row.
+        $penalties = AttendancePenalty::whereIn('session_id', $sessionIds)
             ->whereIn('student_id', $rosterIds)
-            ->where('is_reversed', false)
             ->get()
-            ->groupBy('student_id')
-            ->map(fn (Collection $penalties) => (float) $penalties->sum('amount'));
+            ->groupBy('student_id');
+
+        $penaltyTotals = $penalties->map(
+            fn (Collection $forStudent) => (float) $forStudent->where('is_reversed', false)->sum('amount')
+        );
+
+        // See BuildEventRosterReport for why this exists — sessions whose
+        // Late/Absent penalty was later reversed should read "Reversed"
+        // on the roster, not "Absent"/"Late".
+        //
+        // Guarded on nothing being left outstanding for that session:
+        // attendance_penalties has no unique (student_id, session_id) key
+        // and EndSession's firstOrCreate keys on reason as well, so one
+        // session can hold both a reversed row and a live one. Flipping on
+        // the mere existence of a reversal would then read "Reversed"
+        // while the penalty column still charges for it.
+        $reversedSessionIdsByStudent = $penalties->map(function (Collection $forStudent) {
+            $activeSessionIds = $forStudent->where('is_reversed', false)->pluck('session_id')->flip();
+
+            return $forStudent->where('is_reversed', true)
+                ->pluck('session_id')
+                ->reject(fn (int $sessionId) => $activeSessionIds->has($sessionId))
+                ->flip();
+        });
 
         $groups = $roster
             // See BuildEventRosterReport for why major is part of the key
@@ -92,9 +115,9 @@ final class BuildMasterRosterReport
                 $s->year_level ?? '—',
                 $s->section ?? '—',
             ))
-            ->map(function (Collection $students, string $key) use ($sessionMeta, $recordsBySession, $excludedBySession, $penaltyTotals, $onGroupBuilt) {
+            ->map(function (Collection $students, string $key) use ($sessionMeta, $recordsBySession, $excludedBySession, $penaltyTotals, $reversedSessionIdsByStudent, $onGroupBuilt) {
                 $group = $this->buildGroup(
-                    $key, $students, $sessionMeta, $recordsBySession, $excludedBySession, $penaltyTotals,
+                    $key, $students, $sessionMeta, $recordsBySession, $excludedBySession, $penaltyTotals, $reversedSessionIdsByStudent,
                 );
 
                 if ($onGroupBuilt !== null) {
@@ -149,6 +172,7 @@ final class BuildMasterRosterReport
      * @param  Collection<int, Collection>  $recordsBySession
      * @param  Collection<int, array<int>>  $excludedBySession
      * @param  Collection<int, float>  $penaltyTotals
+     * @param  Collection<int, Collection<int, int>>  $reversedSessionIdsByStudent
      */
     private function buildGroup(
         string $key,
@@ -157,6 +181,7 @@ final class BuildMasterRosterReport
         Collection $recordsBySession,
         Collection $excludedBySession,
         Collection $penaltyTotals,
+        Collection $reversedSessionIdsByStudent,
     ): array {
         [$deptCode, $major, $yearLevel, $section] = explode('|', $key);
 
@@ -167,7 +192,10 @@ final class BuildMasterRosterReport
                 'last_name' => $student->last_name,
                 'first_name' => $student->first_name,
                 'middle_name' => $student->middle_name,
-                'sessions' => $this->sessionStatusesFor($student, $sessionMeta, $recordsBySession, $excludedBySession),
+                'sessions' => $this->sessionStatusesFor(
+                    $student, $sessionMeta, $recordsBySession, $excludedBySession,
+                    $reversedSessionIdsByStudent->get($student->id, collect()),
+                ),
                 'penalty_total' => $penaltyTotals->get($student->id, 0.0),
             ])
             ->values()
@@ -187,6 +215,10 @@ final class BuildMasterRosterReport
      * @param  Collection<int, array>  $sessionMeta
      * @param  Collection<int, Collection>  $recordsBySession
      * @param  Collection<int, array<int>>  $excludedBySession
+     * @param  Collection<int, int>  $reversedSessionIds  Session ids (as keys)
+     *                                                     for which this
+     *                                                     student's Late/Absent
+     *                                                     penalty was reversed.
      * @return array<int, ?string>
      */
     private function sessionStatusesFor(
@@ -194,6 +226,7 @@ final class BuildMasterRosterReport
         Collection $sessionMeta,
         Collection $recordsBySession,
         Collection $excludedBySession,
+        Collection $reversedSessionIds,
     ): array {
         $statuses = [];
 
@@ -201,9 +234,11 @@ final class BuildMasterRosterReport
             $sessionId = $session['id'];
             $isExcluded = in_array($student->id, $excludedBySession->get($sessionId, []), true);
             $record = $recordsBySession->get($sessionId, collect())->get($student->id);
+            $isReversed = $reversedSessionIds->has($sessionId);
 
             $statuses[$sessionId] = match (true) {
                 $isExcluded => 'excluded',
+                $record !== null && $isReversed => 'reversed',
                 $record !== null => $record->status->value,
                 default => null,
             };

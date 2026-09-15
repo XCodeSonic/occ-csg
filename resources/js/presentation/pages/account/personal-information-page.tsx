@@ -36,13 +36,13 @@ interface DetailRowProps {
  */
 function DetailRow({ label, value, Icon, tone }: DetailRowProps) {
     return (
-        <div className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3">
+        <div className="flex items-center gap-4 rounded-2xl border border-border bg-card p-4">
             <Tile tone={tone} variant="soft" Icon={Icon} />
             <div className="min-w-0">
                 <Text variant="caption" className="leading-none">
                     {label}
                 </Text>
-                <Text className="mt-1 truncate font-medium leading-none">{value}</Text>
+                <Text className="mt-2 truncate font-medium leading-none">{value}</Text>
             </div>
         </div>
     );
@@ -107,7 +107,7 @@ export function PersonalInformationPage() {
     const yearAndSection = [student.yearLevel, student.section].filter(Boolean).join(' — ') || '—';
 
     return (
-        <div className="mx-auto max-w-md space-y-6">
+        <div className="mx-auto max-w-md space-y-8">
             <div className="space-y-2">
                 <Heading level="h1">Personal information</Heading>
                 <Text variant="small">
@@ -123,8 +123,8 @@ export function PersonalInformationPage() {
                         {initials(student.firstName, student.lastName)}
                     </AvatarFallback>
                 </Avatar>
-                <div className="space-y-1.5">
-                    <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={() => fileInputRef.current?.click()}>
+                <div className="space-y-2">
+                    <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => fileInputRef.current?.click()}>
                         <Camera className="size-4" />
                         Change photo
                     </Button>

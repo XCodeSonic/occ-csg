@@ -56,7 +56,7 @@ export function PremiumIdCard({
                     <AvatarFallback className="bg-violet-500/10 text-violet-600">{initials(firstName, lastName)}</AvatarFallback>
                 </Avatar>
 
-                <div className="flex w-full flex-col items-center gap-1">
+                <div className="flex w-full flex-col items-center gap-2">
                     <div className="text-h3 font-semibold text-neutral-900">
                         {firstName} {lastName}
                     </div>
@@ -64,14 +64,14 @@ export function PremiumIdCard({
                 </div>
 
                 {(course || section) && (
-                    <div className="flex flex-wrap items-center justify-center gap-1.5">
+                    <div className="flex flex-wrap items-center justify-center gap-2">
                         {course && (
-                            <span className="rounded-full bg-violet-500/10 px-3 py-1 text-caption font-medium tracking-wide text-violet-700 uppercase">
+                            <span className="rounded-full bg-violet-500/10 px-4 py-2 text-caption font-medium tracking-wide text-violet-700 uppercase">
                                 {course}
                             </span>
                         )}
                         {section && (
-                            <span className="rounded-full bg-sky-500/10 px-3 py-1 text-caption font-medium tracking-wide text-sky-700 uppercase">
+                            <span className="rounded-full bg-sky-500/10 px-4 py-2 text-caption font-medium tracking-wide text-sky-700 uppercase">
                                 {section}
                             </span>
                         )}
@@ -92,7 +92,7 @@ export function PremiumIdCard({
                     className="size-full object-contain"
                     style={{ imageRendering: 'pixelated' }}
                 />
-                <div className="shimmer-badge absolute flex size-[clamp(1.75rem,8vw,2.125rem)] items-center justify-center rounded-full bg-white p-0.5 shadow-sm ring-1 ring-neutral-200">
+                <div className="shimmer-badge absolute flex size-[clamp(1.75rem,8vw,2.125rem)] items-center justify-center rounded-full bg-white p-0 shadow-sm ring-1 ring-neutral-200">
                     <img src={csgLogo} alt="" className="size-full scale-125 object-contain" />
                 </div>
             </div>

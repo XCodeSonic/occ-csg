@@ -35,9 +35,9 @@ export function EmptyState({
 }) {
     return (
         <Card className={cn(tone !== 'neutral' && cn('border', TONE[tone].wash), className)}>
-            <CardContent className="flex flex-col items-center gap-3 py-4 text-center">
+            <CardContent className="flex flex-col items-center gap-4 py-4 text-center">
                 <Tile tone={tone} size="lg" variant={tone === 'neutral' ? 'soft' : 'solid'} Icon={Icon} />
-                <div className="space-y-1">
+                <div className="space-y-2">
                     <Text className="font-medium">{title}</Text>
                     {description && (
                         <Text variant="small" className="mx-auto max-w-sm">

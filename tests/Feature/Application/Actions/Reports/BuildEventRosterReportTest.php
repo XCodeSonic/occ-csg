@@ -1,5 +1,6 @@
 <?php
 
+use App\Application\Actions\Penalties\ReversePenalty;
 use App\Application\Actions\Reports\BuildEventRosterReport;
 use App\Application\Actions\Sessions\EndSession;
 use App\Application\Actions\Sessions\ScanAttendance;
@@ -9,6 +10,7 @@ use App\Domain\Enums\Role;
 use App\Domain\Enums\SessionStatus;
 use App\Domain\Enums\WindowType;
 use App\Domain\ValueObjects\QrPayload;
+use App\Models\AttendancePenalty;
 use App\Models\AttendanceSession;
 use App\Models\Department;
 use App\Models\EventDay;
@@ -41,6 +43,21 @@ function rosterEvent(): EventModel
     );
 
     return EventModel::create(['name' => 'Test Event', 'created_by' => $creator->id]);
+}
+
+function rosterAdmin(): Student
+{
+    // The same account rosterEvent() creates as the event's author —
+    // firstOrCreate so either helper can be reached first.
+    return Student::firstOrCreate(
+        ['student_number' => '2020000001'],
+        [
+            'last_name' => 'Admin', 'first_name' => 'CSG',
+            'department_id' => rosterDept('CCS')->id,
+            'username' => 'csgadmin', 'password' => 'password',
+            'role' => Role::CsgAdmin,
+        ],
+    );
 }
 
 function rosterSession(EventModel $event, int $dayNumber = 1, array $overrides = []): AttendanceSession
@@ -202,4 +219,84 @@ it('filters the roster to a single department, year level, and section', functio
     expect($report['groups'])->toHaveCount(1)
         ->and($report['groups'][0]['students'])->toHaveCount(1)
         ->and($report['groups'][0]['students'][0]['student_number'])->toBe('2023000012');
+});
+
+it('reads a reversed absence as reversed rather than absent, and stops charging for it', function () {
+    $event = rosterEvent();
+    $session = rosterSession($event);
+    $student = rosterStudent('2023000020');
+
+    (new EndSession)($session);
+
+    // The precondition this test is really about: before the reversal the
+    // cell is a plain Absent worth the session's absent penalty.
+    $before = (new BuildEventRosterReport)($event)['groups'][0]['students'][0];
+    expect($before['sessions'][$session->id])->toBe('absent')
+        ->and($before['penalty_total'])->toBe(25.0);
+
+    $penalty = AttendancePenalty::where('student_id', $student->id)
+        ->where('session_id', $session->id)
+        ->firstOrFail();
+
+    (new ReversePenalty)($penalty, 'Medical certificate on file', rosterAdmin());
+
+    $after = (new BuildEventRosterReport)($event)['groups'][0]['students'][0];
+
+    expect($after['sessions'][$session->id])->toBe('reversed')
+        ->and($after['penalty_total'])->toBe(0.0);
+});
+
+it('leaves an excluded session reading excluded even when a penalty for it was reversed', function () {
+    $event = rosterEvent();
+    $session = rosterSession($event);
+    $student = rosterStudent('2023000022');
+
+    (new EndSession)($session);
+
+    $penalty = AttendancePenalty::where('student_id', $student->id)
+        ->where('session_id', $session->id)
+        ->firstOrFail();
+    (new ReversePenalty)($penalty, 'Reversed', rosterAdmin());
+
+    // Exclusion is recorded after the fact and still outranks Reversed:
+    // "was never expected to attend" is a stronger statement than "was
+    // charged and then forgiven".
+    Exclusion::create([
+        'student_id' => $student->id,
+        'event_id' => $event->id,
+        'scope' => ExclusionScope::Event,
+        'created_by' => $event->created_by,
+    ]);
+
+    expect((new BuildEventRosterReport)($event)['groups'][0]['students'][0]['sessions'][$session->id])
+        ->toBe('excluded');
+});
+
+it('does not read as reversed while a live penalty for the same session survives', function () {
+    $event = rosterEvent();
+    $session = rosterSession($event);
+    $student = rosterStudent('2023000023');
+
+    (new EndSession)($session);
+
+    $reversed = AttendancePenalty::where('student_id', $student->id)
+        ->where('session_id', $session->id)
+        ->firstOrFail();
+    (new ReversePenalty)($reversed, 'Reversed in error', rosterAdmin());
+
+    // A second, still-live charge on the same session. attendance_penalties
+    // has no unique (student_id, session_id) key and EndSession's
+    // firstOrCreate keys on reason too, so this is reachable — and while the
+    // student still owes money the cell must not claim to be forgiven.
+    AttendancePenalty::create([
+        'student_id' => $student->id,
+        'session_id' => $session->id,
+        'amount' => 25,
+        'reason' => 'Absent - Time In (re-charged)',
+    ]);
+
+    $row = (new BuildEventRosterReport)($event)['groups'][0]['students'][0];
+
+    expect($row['sessions'][$session->id])->toBe('absent')
+        ->and($row['penalty_total'])->toBe(25.0);
 });

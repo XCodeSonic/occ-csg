@@ -56,4 +56,38 @@ class AttendanceSessionPolicy
             Role::Officer,
         ], true);
     }
+
+    /**
+     * Undoing a scan is deliberately the *same* tier as making one, not
+     * an admin-only escalation. The whole point of the feature is that
+     * the officer holding the scanner is the only person who can see
+     * that the face in front of them isn't the face on the badge — if
+     * reversing had to wait for a CSG Admin, the wrong student stays
+     * marked Present for the rest of the session and the real owner
+     * can't scan in at all (the unique index on session+student means
+     * their slot is taken).
+     *
+     * The safety net isn't a narrower role list, it's the audit trail:
+     * every reversal writes an append-only attendance_record_reversals
+     * row naming the officer who did it and why (see
+     * ReverseAttendanceRecord), and the window is narrow — only while
+     * the session is still Ongoing.
+     */
+    public function reverseScan(Student $user): bool
+    {
+        return $this->scan($user);
+    }
+
+    /**
+     * The "Recent scans" strip on the scanning screen — the last handful
+     * of badges read into *this one session*. Gated with the scanners
+     * rather than with viewReport: it's the officer's own working list
+     * (it's what they tap to reverse a mis-scan), and unlike the report
+     * it's capped at a few rows of one live session rather than being a
+     * roster-wide read.
+     */
+    public function viewRecentScans(Student $user): bool
+    {
+        return $this->scan($user);
+    }
 }

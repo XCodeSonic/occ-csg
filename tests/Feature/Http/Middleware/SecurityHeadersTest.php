@@ -23,7 +23,7 @@ it('sets a content security policy on the spa shell', function () {
         ->toContain("frame-ancestors 'none'");
 });
 
-it('keeps font and style origins self-hosted now that Instrument Sans is bundled by Vite instead of linked from Google Fonts', function () {
+it('keeps font and style origins self-hosted now that Inter is bundled by Vite instead of linked from Google Fonts', function () {
     $csp = $this->get('/')->headers->get('Content-Security-Policy');
 
     expect($csp)

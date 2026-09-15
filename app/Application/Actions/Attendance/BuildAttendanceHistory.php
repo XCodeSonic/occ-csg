@@ -125,6 +125,10 @@ final class BuildAttendanceHistory
             'first_name' => $record->student->first_name,
             'department_id' => $record->student->department_id,
             'department_code' => $record->student->department?->code,
+            // Same reasoning as BuildPenaltyLedger: the admin ledger shows
+            // the attendee's photo, so the row carries the URL directly
+            // rather than making the frontend re-fetch each student.
+            'photo_url' => $record->student->photo_url,
             'major' => $record->student->major,
             'year_level' => $record->student->year_level,
             'section' => $record->student->section,

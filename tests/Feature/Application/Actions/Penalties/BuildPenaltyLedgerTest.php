@@ -163,3 +163,25 @@ it('searches by student number and name', function () {
         ->and($byName->total())->toBe(1)
         ->and($byName->items()[0]['student_id'])->toBe($target->id);
 });
+
+it('carries the student photo url so the ledger can render a real avatar', function () {
+    $admin = ledgerAdmin();
+    $event = EventModel::create(['name' => 'Intrams', 'created_by' => $admin->id]);
+    $session = ledgerSession($event);
+
+    $withPhoto = ledgerStudent('2020300050', 'CCS', ['photo_path' => 'photos/2020300050.jpg']);
+    $withoutPhoto = ledgerStudent('2020300051');
+
+    ledgerPenalty($withPhoto, $session);
+    ledgerPenalty($withoutPhoto, $session);
+
+    $rows = collect((new BuildPenaltyLedger)([])->items())->keyBy('student_number');
+
+    // Root-relative on purpose — see Student::photoUrl for why this isn't
+    // built from APP_URL.
+    expect($rows['2020300050']['photo_url'])->toBe('/storage/photos/2020300050.jpg')
+        // Null rather than absent: the frontend keys its initials fallback
+        // off this being null, so the field has to exist either way.
+        ->and($rows['2020300051'])->toHaveKey('photo_url')
+        ->and($rows['2020300051']['photo_url'])->toBeNull();
+});

@@ -126,7 +126,7 @@ export function SemesterSection({ academicYearId, canManage }: { academicYearId:
             <button
                 type="button"
                 onClick={() => setExpanded((value) => !value)}
-                className="flex w-full items-center gap-2 px-6 py-3 text-left transition-colors hover:bg-accent"
+                className="flex w-full items-center gap-2 px-6 py-4 text-left transition-colors hover:bg-accent"
             >
                 {expanded ? (
                     <ChevronDown className="size-4 text-muted-foreground" />
@@ -139,7 +139,7 @@ export function SemesterSection({ academicYearId, canManage }: { academicYearId:
             </button>
 
             {expanded && (
-                <div className="space-y-3 px-6 pb-5">
+                <div className="space-y-4 px-6 pb-6">
                     {isLoading && <Text variant="small">Loading…</Text>}
 
                     {!isLoading && semesters?.length === 0 && !isCreating && (
@@ -152,10 +152,10 @@ export function SemesterSection({ academicYearId, canManage }: { academicYearId:
                                 <form
                                     key={semester.id}
                                     onSubmit={(event) => handleEditSubmit(event, semester.id)}
-                                    className="space-y-3 rounded-lg border border-border p-3"
+                                    className="space-y-4 rounded-lg border border-border p-4"
                                 >
                                     <Text className="font-medium">{SEMESTER_LABEL[semester.name as SemesterTerm]}</Text>
-                                    <div className="grid grid-cols-2 gap-3">
+                                    <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-2">
                                             <Label htmlFor={`editSemStart-${semester.id}`}>Start date</Label>
                                             <Input
@@ -196,7 +196,7 @@ export function SemesterSection({ academicYearId, canManage }: { academicYearId:
                             ) : (
                                 <div
                                     key={semester.id}
-                                    className="flex items-center justify-between gap-4 rounded-lg border border-border p-3"
+                                    className="flex items-center justify-between gap-4 rounded-lg border border-border p-4"
                                 >
                                     <div>
                                         <div className="flex items-center gap-2">
@@ -237,7 +237,7 @@ export function SemesterSection({ academicYearId, canManage }: { academicYearId:
 
                     {canManage &&
                         (isCreating ? (
-                            <form onSubmit={handleCreateSubmit} className="space-y-3 rounded-lg border border-border p-3">
+                            <form onSubmit={handleCreateSubmit} className="space-y-4 rounded-lg border border-border p-4">
                                 <div className="space-y-2">
                                     <Label htmlFor={`createSemName-${academicYearId}`}>Term</Label>
                                     <Select
@@ -264,7 +264,7 @@ export function SemesterSection({ academicYearId, canManage }: { academicYearId:
                                         </SelectContent>
                                     </Select>
                                 </div>
-                                <div className="grid grid-cols-2 gap-3">
+                                <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
                                         <Label htmlFor={`createSemStart-${academicYearId}`}>Start date</Label>
                                         <Input

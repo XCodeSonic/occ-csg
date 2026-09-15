@@ -119,7 +119,7 @@ export function ScanPage() {
             <div className="mx-auto max-w-md space-y-4 pt-8">
                 <Heading level="h1">Scan</Heading>
                 <Card>
-                    <CardContent className="flex flex-col items-center gap-3 pt-6 text-center">
+                    <CardContent className="flex flex-col items-center gap-4 text-center">
                         <Tile tone="neutral" size="lg" variant="soft" Icon={ScanLine} />
                         <div>
                             <Text className="font-medium">No session is open for scanning</Text>
@@ -344,7 +344,7 @@ function Scanner({
 
     return (
         <div className="mx-auto flex max-w-md flex-col gap-4">
-            <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start justify-between gap-4">
                 <Heading level="h1">Scan</Heading>
                 {showChangeSession && (
                     <Button variant="outline" size="sm" onClick={onChangeSession}>
@@ -390,7 +390,7 @@ function Scanner({
                             think the first scan never went through). */}
                         <div
                             className={cn(
-                                'flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium text-white transition-colors duration-200',
+                                'flex items-center gap-2 rounded-full px-4 py-2 text-xs font-medium text-white transition-colors duration-200',
                                 isProcessing ? 'bg-amber-500 shadow-lg shadow-amber-500/40' : 'bg-black/50 backdrop-blur-sm',
                             )}
                         >
@@ -414,7 +414,7 @@ function Scanner({
                 )}
 
                 {feedback && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/80 p-6 text-center backdrop-blur-sm">
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-black/80 p-6 text-center backdrop-blur-sm">
                         <button
                             type="button"
                             onClick={dismissFeedback}
@@ -450,14 +450,14 @@ function Scanner({
                         {recent.map((entry) => (
                             <div
                                 key={`${entry.recordId}-${entry.outcome}-${entry.scannedAt}`}
-                                className="flex items-center gap-3 rounded-2xl border bg-card p-2.5"
+                                className="flex items-center gap-4 rounded-2xl border bg-card p-2"
                             >
                                 <UserAvatar student={entry.student} className="size-9" />
                                 <div className="min-w-0 flex-1">
                                     <Text className="truncate text-sm font-medium">{studentFullName(entry.student)}</Text>
                                     <Text variant="caption">{studentMeta(entry.student)}</Text>
                                 </div>
-                                <div className="flex flex-col items-end gap-1">
+                                <div className="flex flex-col items-end gap-2">
                                     <OutcomeBadge result={entry} checkType={session.checkType} />
                                     {formatScanTime(entry.scannedAt) && (
                                         <Text variant="caption">{formatScanTime(entry.scannedAt)}</Text>
@@ -484,7 +484,7 @@ function SessionOption({ session, onSelect }: { session: ScannableSession; onSel
         <button
             type="button"
             onClick={onSelect}
-            className="flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition-all hover:shadow-md active:scale-[0.99]"
+            className="flex w-full items-center gap-4 rounded-2xl border p-4 text-left transition-all hover:shadow-md active:scale-[0.99]"
         >
             <Tile tone={windowStyle.tone} variant="solid" Icon={windowStyle.Icon} />
             <div className="min-w-0 flex-1">
@@ -504,7 +504,7 @@ function SessionContextCard({ session }: { session: ScannableSession }) {
     const windowStyle = WINDOW_STYLE[session.windowType] ?? { Icon: Clock, tone: 'neutral' as Tone };
 
     return (
-        <div className={cn('flex items-center gap-3 rounded-2xl border p-3', TONE.emerald.wash)}>
+        <div className={cn('flex items-center gap-4 rounded-2xl border p-4', TONE.emerald.wash)}>
             <Tile tone={windowStyle.tone} variant="solid" Icon={windowStyle.Icon} />
             <div className="min-w-0 flex-1">
                 <Text variant="small" className="truncate font-medium text-foreground">
@@ -515,7 +515,7 @@ function SessionContextCard({ session }: { session: ScannableSession }) {
                     {CHECK_TYPE_LABEL[session.checkType as keyof typeof CHECK_TYPE_LABEL] ?? session.checkType}
                 </Text>
             </div>
-            <span className={cn('flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-caption font-medium', TONE.emerald.chip)}>
+            <span className={cn('flex shrink-0 items-center gap-2 rounded-full px-2 py-2 text-caption font-medium', TONE.emerald.chip)}>
                 <span className="relative flex size-1.5">
                     <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-500 opacity-75" />
                     <span className="relative inline-flex size-1.5 rounded-full bg-emerald-500" />
@@ -571,7 +571,7 @@ function OutcomeBadge({ result, checkType }: { result: ScanResult; checkType: st
     const checkLabel = CHECK_TYPE_LABEL[checkType as keyof typeof CHECK_TYPE_LABEL] ?? checkType;
 
     return (
-        <span className={cn('rounded-full px-2.5 py-1 text-caption font-medium whitespace-nowrap', TONE[tone].chip)}>
+        <span className={cn('rounded-full px-2 py-2 text-caption font-medium whitespace-nowrap', TONE[tone].chip)}>
             {resultHeadline(result, checkLabel)}
         </span>
     );

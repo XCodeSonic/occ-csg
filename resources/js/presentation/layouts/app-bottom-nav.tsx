@@ -108,7 +108,7 @@ export function AppBottomNav({ student }: { student: Student }) {
 
     return (
         <nav
-            className="fixed inset-x-0 bottom-0 z-50 flex items-center justify-center gap-3 px-4"
+            className="fixed inset-x-0 bottom-0 z-50 flex items-center justify-center gap-4 px-4"
             style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}
         >
             {/* Standalone floating circle when the nav is collapsed, sized
@@ -152,16 +152,16 @@ export function AppBottomNav({ student }: { student: Student }) {
                             key="expanded"
                             layoutId="bottom-nav-shell"
                             transition={MORPH_TRANSITION}
-                            className="w-[min(88vw,24rem)] rounded-[28px] bg-primary p-3 shadow-[0_20px_60px_-12px_rgba(0,0,0,0.45)]"
+                            className="w-[min(88vw,24rem)] rounded-[28px] bg-primary p-4 shadow-[0_20px_60px_-12px_rgba(0,0,0,0.45)]"
                         >
-                            <div className="flex items-center gap-2 px-1 py-2">
+                            <div className="flex items-center gap-2 px-2 py-2">
                                 <button
                                     type="button"
                                     onClick={() => {
                                         setOpen(false);
                                         navigate('/account');
                                     }}
-                                    className="flex min-w-0 items-center gap-2 rounded-2xl py-1 text-left transition-colors hover:bg-primary-foreground/10"
+                                    className="flex min-w-0 items-center gap-2 rounded-2xl py-2 text-left transition-colors hover:bg-primary-foreground/10"
                                 >
                                     <UserAvatar student={student} className="size-9" />
                                     <div className="min-w-0 max-w-40">
@@ -188,14 +188,14 @@ export function AppBottomNav({ student }: { student: Student }) {
                             {/* px-2 keeps the first/last item (which can be
                                 highlighted when active) clear of the
                                 panel's rounded edge instead of hugging it. */}
-                            <div className="mt-1 flex items-center justify-center gap-3 px-4 pb-1">
+                            <div className="mt-2 flex items-center justify-center gap-4 px-4 pb-2">
                                 {/* {canGoBack && (
                                     <motion.button
                                         layoutId="back-button"
                                         transition={MORPH_TRANSITION}
                                         type="button"
                                         onClick={handleBack}
-                                        className="flex flex-col items-center gap-1.5 rounded-2xl px-4 py-3 text-primary-foreground/55 transition-colors hover:bg-primary-foreground/10"
+                                        className="flex flex-col items-center gap-2 rounded-2xl px-4 py-4 text-primary-foreground/55 transition-colors hover:bg-primary-foreground/10"
                                     >
                                         <ChevronLeft className="size-5" strokeWidth={2} />
                                         <span className="text-center text-[11px] leading-none text-balance">
@@ -211,7 +211,7 @@ export function AppBottomNav({ student }: { student: Student }) {
                                             to={item.to}
                                             className={({ isActive }) =>
                                                 cn(
-                                                    'group flex flex-col items-center gap-1.5 rounded-2xl px-3.5 py-3 text-primary-foreground/55 transition-colors',
+                                                    'group flex flex-col items-center gap-2 rounded-2xl px-4 py-4 text-primary-foreground/55 transition-colors',
                                                     isActive && 'text-primary-foreground',
                                                 )
                                             }
@@ -261,7 +261,7 @@ export function AppBottomNav({ student }: { student: Student }) {
                             transition={MORPH_TRANSITION}
                             onClick={() => setOpen(true)}
                             aria-label={`Currently on ${current.label}. Tap to open navigation.`}
-                            className="flex items-center gap-2 rounded-full bg-primary py-1.5 pr-1.5 pl-1.5 shadow-[0_12px_40px_-8px_rgba(0,0,0,0.35)]"
+                            className="flex items-center gap-2 rounded-full bg-primary py-2 pr-2 pl-2 shadow-[0_12px_40px_-8px_rgba(0,0,0,0.35)]"
                         >
                             <UserAvatar student={student} className="size-7" />
 
@@ -274,7 +274,7 @@ export function AppBottomNav({ student }: { student: Student }) {
                                 {current.label}
                             </span>
 
-                            <span className="flex items-center gap-1 rounded-full bg-primary-foreground/10 py-1 pr-2 pl-1.5 text-primary-foreground/70">
+                            <span className="flex items-center gap-2 rounded-full bg-primary-foreground/10 py-2 pr-2 pl-2 text-primary-foreground/70">
                                 <ChevronUp className="size-3.5" strokeWidth={2.5} />
                                 <span className="text-[10px] font-semibold tracking-wide">TAP</span>
                             </span>
