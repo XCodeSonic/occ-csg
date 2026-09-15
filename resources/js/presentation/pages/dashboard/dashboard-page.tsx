@@ -599,26 +599,24 @@ function ScoreHero({ value, tier, eyebrow, caption }: { value: number | null; ti
                 <div className="flex flex-col items-center gap-4 text-center">
                     <Text variant="caption">{eyebrow}</Text>
 
-                    <Glow tone={tone}>
-                        <RadialGauge value={value ?? 0} gradient={TONE[tone].gradient}>
-                            {value !== null ? (
-                                <>
-                                    <span className="text-display font-semibold tabular-nums text-foreground">
-                                        <AnimatedCounter value={value} format={(n) => `${Math.round(n)}`} />
-                                    </span>
-                                    <span className="text-caption text-muted-foreground">percent</span>
-                                </>
-                            ) : (
-                                <span className="text-h3 text-muted-foreground">—</span>
-                            )}
-                        </RadialGauge>
-                    </Glow>
+                    <RadialGauge value={value ?? 0} gradient={TONE[tone].gradient}>
+                        {value !== null ? (
+                            <>
+                                <span className="text-display font-semibold tabular-nums text-foreground">
+                                    <AnimatedCounter value={value} format={(n) => `${Math.round(n)}`} />
+                                </span>
+                                <span className="text-caption text-muted-foreground">percent</span>
+                            </>
+                        ) : (
+                            <span className="text-h3 text-muted-foreground">—</span>
+                        )}
+                    </RadialGauge>
 
                     <motion.div
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ delay: 0.6, type: 'spring', stiffness: 260, damping: 18 }}
-                        className={cn('flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-small font-medium', TONE[tone].solid)}
+                        className={cn('flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-small font-medium shadow-none', TONE[tone].solid)}
                     >
                         <Icon className="size-4" />
                         {tier.label}
