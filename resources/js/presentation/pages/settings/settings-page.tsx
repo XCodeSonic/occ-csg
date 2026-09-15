@@ -1,4 +1,4 @@
-import { Building2, CalendarDays, CalendarRange, FileBarChart, Receipt, Users } from 'lucide-react';
+import { Building2, CalendarDays, CalendarRange, ClipboardList, FileBarChart, Receipt, Users } from 'lucide-react';
 
 import { Separator } from '@/components/ui/separator';
 import { useAuthStore } from '@/application/auth/auth.store';
@@ -28,6 +28,11 @@ export function SettingsPage() {
     const canManageAcademicYears = ACADEMIC_YEAR_ROLES.includes(student.role);
     const canManageDepartments = DEPARTMENT_ROLES.includes(student.role);
     const canManagePenalties = PENALTY_ROLES.includes(student.role);
+    // An Officer doesn't get the "manage" tier of Attendance History
+    // (that's the org-wide ledger), but they hit the same route and the
+    // backend scopes it down to only the records they've personally
+    // scanned — see AttendanceSessionPolicy::viewOwnScanHistory.
+    const isOfficer = student.role === Role.Officer;
 
     return (
         <div className="mx-auto max-w-md space-y-8">
@@ -35,7 +40,7 @@ export function SettingsPage() {
                 <Heading level="h1">Settings</Heading>
             </div>
 
-            {canManage || canManageEvents || canManageAcademicYears || canManageDepartments || canManagePenalties ? (
+            {canManage || canManageEvents || canManageAcademicYears || canManageDepartments || canManagePenalties || isOfficer ? (
                 <div className="overflow-hidden rounded-lg border border-border">
                     {canManage && (
                         <>
@@ -45,6 +50,25 @@ export function SettingsPage() {
                             <Separator />
                             <SettingsRow to="/reports" icon={<FileBarChart className="size-5" />}>
                                 Reports
+                            </SettingsRow>
+                            <Separator />
+                            {/* Same viewReport gate as the roster/session
+                                reports above (System Admin/CSG Admin/SC
+                                Admin) — see AttendanceSessionPolicy. */}
+                            <SettingsRow to="/attendance-history" icon={<ClipboardList className="size-5" />}>
+                                Attendance History
+                            </SettingsRow>
+                        </>
+                    )}
+                    {isOfficer && (
+                        <>
+                            {/* Same route as the admin ledger row above,
+                                but an Officer never sees canManage === true,
+                                so this is the only "Attendance History" row
+                                they get — the backend scopes it to their
+                                own scans regardless of label. */}
+                            <SettingsRow to="/attendance-history" icon={<ClipboardList className="size-5" />}>
+                                My Scan History
                             </SettingsRow>
                         </>
                     )}

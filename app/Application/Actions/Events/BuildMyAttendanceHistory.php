@@ -29,7 +29,7 @@ final class BuildMyAttendanceHistory
      *     day_id: int, day_number: int, date: string,
      *     session_id: int, window_type: string, check_type: string,
      *     start_time: string, end_time: string, session_status: string,
-     *     attendance_status: ?string, scanned_at: ?string,
+     *     attendance_status: ?string, scanned_at: ?string, scanned_by_name: ?string,
      * }>
      */
     public function __invoke(Student $student): array
@@ -55,6 +55,7 @@ final class BuildMyAttendanceHistory
                         'session_status' => $session['session_status'],
                         'attendance_status' => $session['attendance_status'],
                         'scanned_at' => $session['scanned_at'],
+                        'scanned_by_name' => $session['scanned_by_name'],
                     ]),
                 );
             })

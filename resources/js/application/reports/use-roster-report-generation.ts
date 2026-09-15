@@ -5,6 +5,16 @@ import type { ReportGeneration, RosterReportFilters } from '@/infrastructure/rep
 
 const POLL_INTERVAL_MS = 1500;
 
+// Wall-clock ceiling on the whole "start → poll" flow. Without this, a
+// generation job that dies mid-way on the server (PHP-FPM worker killed,
+// memory limit hit, server restart) never flips to completed/failed, and
+// this hook would poll every 1.5s forever for as long as the tab stays
+// open — a stuck progress bar with no error and no way out but a reload.
+// 5 minutes is comfortably above any real roster export on this app's
+// data volumes; if it's still pending past that, something is wrong and
+// the person needs a clear "try again" instead of silence.
+const POLL_TIMEOUT_MS = 5 * 60 * 1000;
+
 // See use-master-report-generation.ts for the full reasoning — same
 // hook, same "animate on its own clock, ratchet up on real data"
 // approach, because a single event's report can be just as coarse
@@ -43,6 +53,7 @@ export function useRosterReportGeneration(eventId: number) {
     const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const animationRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const targetPercentageRef = useRef(0); // last known REAL percentage from the server
+    const pollStartedAtRef = useRef(0); // Date.now() when the current poll loop began
 
     const clearPoll = useCallback(() => {
         if (pollTimeoutRef.current !== null) {
@@ -97,6 +108,12 @@ export function useRosterReportGeneration(eventId: number) {
                     return;
                 }
 
+                if (Date.now() - pollStartedAtRef.current >= POLL_TIMEOUT_MS) {
+                    clearAnimation();
+                    setError('This is taking longer than expected. Please try again.');
+                    return;
+                }
+
                 pollTimeoutRef.current = setTimeout(() => poll(id), POLL_INTERVAL_MS);
             } catch {
                 clearAnimation();
@@ -114,6 +131,7 @@ export function useRosterReportGeneration(eventId: number) {
             setGeneration(null);
             setDisplayPercentage(0);
             targetPercentageRef.current = 0;
+            pollStartedAtRef.current = Date.now();
 
             const created = await httpReportsRepository.startRosterReportGeneration(eventId, filters);
             setGeneration(created);

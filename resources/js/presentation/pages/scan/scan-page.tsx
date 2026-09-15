@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { BrowserQRCodeReader } from '@zxing/browser';
 import type { IScannerControls } from '@zxing/browser';
-import { AlertTriangle, CheckCircle2, Loader2, ScanLine, X, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ChevronRight, Clock, Loader2, Moon, ScanLine, Sun, Sunrise, X, XCircle, type LucideIcon } from 'lucide-react';
 
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -13,6 +12,8 @@ import { AttendanceStatus, CHECK_TYPE_LABEL, ScanOutcome } from '@/domain/enums'
 import { ScanError, type ScanResult, type ScannedStudent } from '@/infrastructure/sessions/sessions.repository.http';
 import { Heading, Text } from '@/presentation/components/typography';
 import { UserAvatar } from '@/presentation/components/user-avatar';
+import { Tile } from '@/presentation/components/tile';
+import { TONE, type Tone } from '@/presentation/components/tone';
 import { cn } from '@/lib/utils';
 
 // The double-scan guard: how long a given decoded QR string is ignored
@@ -62,6 +63,26 @@ const WINDOW_LABEL: Record<string, string> = {
     evening: 'Evening',
 };
 
+/** Window → icon + hue, matching the streak strip and the event schedule, so
+ *  an officer glancing at three screens sees one vocabulary. */
+const WINDOW_STYLE: Record<string, { Icon: LucideIcon; tone: Tone }> = {
+    morning: { Icon: Sunrise, tone: 'amber' },
+    afternoon: { Icon: Sun, tone: 'orange' },
+    evening: { Icon: Moon, tone: 'violet' },
+};
+
+/**
+ * The scanner's three outcomes, mapped onto the app's status palette. Same
+ * hues the dashboard uses for Present / Late / Absent — an officer scanning
+ * a gate and an admin reading a report are looking at the same colors for
+ * the same facts.
+ */
+const OUTCOME_TONE: Record<'good' | 'warn' | 'bad', Tone> = {
+    good: 'emerald',
+    warn: 'amber',
+    bad: 'red',
+};
+
 type Feedback = { kind: 'success'; result: ScanResult } | { kind: 'error'; message: string };
 
 export function ScanPage() {
@@ -83,8 +104,12 @@ export function ScanPage() {
 
     if (isLoading) {
         return (
-            <div className="pt-12 text-center">
-                <Text variant="small">Checking for an open session…</Text>
+            <div className="mx-auto max-w-md space-y-4 pt-8">
+                <Heading level="h1">Scan</Heading>
+                <div className="aspect-[3/4] w-full animate-pulse rounded-3xl bg-muted" />
+                <Text variant="small" className="text-center">
+                    Checking for an open session…
+                </Text>
             </div>
         );
     }
@@ -94,12 +119,14 @@ export function ScanPage() {
             <div className="mx-auto max-w-md space-y-4 pt-8">
                 <Heading level="h1">Scan</Heading>
                 <Card>
-                    <CardContent className="space-y-2 pt-6 text-center">
-                        <ScanLine className="mx-auto size-8 text-muted-foreground" />
-                        <Text className="font-medium">No session is open for scanning</Text>
-                        <Text variant="small">
-                            Scanning opens automatically once a CSG Admin marks a session as ongoing.
-                        </Text>
+                    <CardContent className="flex flex-col items-center gap-3 pt-6 text-center">
+                        <Tile tone="neutral" size="lg" variant="soft" Icon={ScanLine} />
+                        <div>
+                            <Text className="font-medium">No session is open for scanning</Text>
+                            <Text variant="small">
+                                Scanning opens automatically once a CSG Admin marks a session as ongoing.
+                            </Text>
+                        </div>
                     </CardContent>
                 </Card>
             </div>
@@ -128,18 +155,7 @@ export function ScanPage() {
                         </DialogHeader>
                         <div className="space-y-2">
                             {sessions.map((session) => (
-                                <button
-                                    key={session.id}
-                                    type="button"
-                                    onClick={() => setSelectedSessionId(session.id)}
-                                    className="block w-full rounded-xl border p-4 text-left transition-colors hover:bg-accent"
-                                >
-                                    <Text className="font-medium">{session.eventName}</Text>
-                                    <Text variant="small">
-                                        Day {session.dayNumber} — {WINDOW_LABEL[session.windowType] ?? session.windowType} —{' '}
-                                        {CHECK_TYPE_LABEL[session.checkType as keyof typeof CHECK_TYPE_LABEL] ?? session.checkType}
-                                    </Text>
-                                </button>
+                                <SessionOption key={session.id} session={session} onSelect={() => setSelectedSessionId(session.id)} />
                             ))}
                         </div>
                     </DialogContent>
@@ -329,14 +345,7 @@ function Scanner({
     return (
         <div className="mx-auto flex max-w-md flex-col gap-4">
             <div className="flex items-start justify-between gap-3">
-                <div>
-                    <Heading level="h1">Scan</Heading>
-                    <Text variant="small">
-                        {session.eventName} — Day {session.dayNumber} —{' '}
-                        {WINDOW_LABEL[session.windowType] ?? session.windowType} —{' '}
-                        {CHECK_TYPE_LABEL[session.checkType as keyof typeof CHECK_TYPE_LABEL] ?? session.checkType}
-                    </Text>
-                </div>
+                <Heading level="h1">Scan</Heading>
                 {showChangeSession && (
                     <Button variant="outline" size="sm" onClick={onChangeSession}>
                         Change session
@@ -344,12 +353,20 @@ function Scanner({
                 )}
             </div>
 
+            {/* What you're scanning into, as a card rather than a line of
+                em-dash-joined text under the title. An officer picks this up
+                at arm's length between badges; it has to survive a glance. */}
+            <SessionContextCard session={session} />
+
             <div
                 className={cn(
-                    'relative aspect-[3/4] w-full overflow-hidden rounded-2xl bg-black ring-4 ring-transparent transition-colors duration-300',
-                    tone === 'good' && 'ring-emerald-500',
-                    tone === 'warn' && 'ring-amber-500',
-                    tone === 'bad' && 'ring-red-500',
+                    'relative aspect-[3/4] w-full overflow-hidden rounded-3xl bg-black ring-4 ring-transparent transition-all duration-300',
+                    // The glow is the point: a lit ring in the outcome's own
+                    // hue turns the whole viewfinder into the status light,
+                    // readable from further away than any badge or icon.
+                    tone === 'good' && 'ring-emerald-500 shadow-2xl shadow-emerald-500/40',
+                    tone === 'warn' && 'ring-amber-500 shadow-2xl shadow-amber-500/40',
+                    tone === 'bad' && 'ring-red-500 shadow-2xl shadow-red-500/40',
                 )}
             >
                 {/* The camera never stops for feedback — it keeps decoding
@@ -361,7 +378,7 @@ function Scanner({
                     <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-4">
                         <div
                             className={cn(
-                                'size-56 rounded-2xl border-2 transition-colors duration-200',
+                                'size-56 rounded-3xl border-2 transition-colors duration-200',
                                 isProcessing ? 'border-amber-400/80' : 'border-white/60',
                             )}
                         />
@@ -373,8 +390,8 @@ function Scanner({
                             think the first scan never went through). */}
                         <div
                             className={cn(
-                                'flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium text-white transition-colors duration-200',
-                                isProcessing ? 'bg-amber-500/90' : 'bg-black/50',
+                                'flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium text-white transition-colors duration-200',
+                                isProcessing ? 'bg-amber-500 shadow-lg shadow-amber-500/40' : 'bg-black/50 backdrop-blur-sm',
                             )}
                         >
                             {isProcessing ? (
@@ -391,18 +408,18 @@ function Scanner({
 
                 {cameraError && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/90 p-6 text-center">
-                        <AlertTriangle className="size-8 text-amber-400" />
+                        <Tile tone="amber" size="lg" variant="solid" Icon={AlertTriangle} />
                         <Text className="text-white">{cameraError}</Text>
                     </div>
                 )}
 
                 {feedback && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/80 p-6 text-center">
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/80 p-6 text-center backdrop-blur-sm">
                         <button
                             type="button"
                             onClick={dismissFeedback}
                             aria-label="Close"
-                            className="absolute right-3 top-3 rounded-full bg-white/10 p-1.5 text-white/80 transition-colors hover:bg-white/20 hover:text-white"
+                            className="absolute right-3 top-3 rounded-xl bg-white/10 p-2 text-white/80 transition-colors hover:bg-white/20 hover:text-white"
                         >
                             <X className="size-5" />
                         </button>
@@ -410,7 +427,7 @@ function Scanner({
                             <SuccessPanel result={feedback.result} checkType={session.checkType} />
                         ) : (
                             <>
-                                <XCircle className="size-10 text-red-400" />
+                                <Tile tone="red" size="lg" variant="solid" Icon={XCircle} />
                                 <Text className="font-medium text-white">{feedback.message}</Text>
                             </>
                         )}
@@ -433,7 +450,7 @@ function Scanner({
                         {recent.map((entry) => (
                             <div
                                 key={`${entry.recordId}-${entry.outcome}-${entry.scannedAt}`}
-                                className="flex items-center gap-3 rounded-lg border p-2"
+                                className="flex items-center gap-3 rounded-2xl border bg-card p-2.5"
                             >
                                 <UserAvatar student={entry.student} className="size-9" />
                                 <div className="min-w-0 flex-1">
@@ -455,26 +472,91 @@ function Scanner({
     );
 }
 
+/**
+ * One row in the "which session?" dialog. Given the same tile-and-chevron
+ * shape as the account picker on the login screen, since it's the same
+ * decision: one tap, pick a thing, get on with it.
+ */
+function SessionOption({ session, onSelect }: { session: ScannableSession; onSelect: () => void }) {
+    const windowStyle = WINDOW_STYLE[session.windowType] ?? { Icon: Clock, tone: 'neutral' as Tone };
+
+    return (
+        <button
+            type="button"
+            onClick={onSelect}
+            className="flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition-all hover:shadow-md active:scale-[0.99]"
+        >
+            <Tile tone={windowStyle.tone} variant="solid" Icon={windowStyle.Icon} />
+            <div className="min-w-0 flex-1">
+                <Text className="truncate font-medium leading-tight">{session.eventName}</Text>
+                <Text variant="caption" className="truncate">
+                    Day {session.dayNumber} · {WINDOW_LABEL[session.windowType] ?? session.windowType} ·{' '}
+                    {CHECK_TYPE_LABEL[session.checkType as keyof typeof CHECK_TYPE_LABEL] ?? session.checkType}
+                </Text>
+            </div>
+            <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+        </button>
+    );
+}
+
+/** The standing "you are scanning into X" banner above the viewfinder. */
+function SessionContextCard({ session }: { session: ScannableSession }) {
+    const windowStyle = WINDOW_STYLE[session.windowType] ?? { Icon: Clock, tone: 'neutral' as Tone };
+
+    return (
+        <div className={cn('flex items-center gap-3 rounded-2xl border p-3', TONE.emerald.wash)}>
+            <Tile tone={windowStyle.tone} variant="solid" Icon={windowStyle.Icon} />
+            <div className="min-w-0 flex-1">
+                <Text variant="small" className="truncate font-medium text-foreground">
+                    {session.eventName}
+                </Text>
+                <Text variant="caption" className="truncate">
+                    Day {session.dayNumber} · {WINDOW_LABEL[session.windowType] ?? session.windowType} ·{' '}
+                    {CHECK_TYPE_LABEL[session.checkType as keyof typeof CHECK_TYPE_LABEL] ?? session.checkType}
+                </Text>
+            </div>
+            <span className={cn('flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-caption font-medium', TONE.emerald.chip)}>
+                <span className="relative flex size-1.5">
+                    <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-500 opacity-75" />
+                    <span className="relative inline-flex size-1.5 rounded-full bg-emerald-500" />
+                </span>
+                Open
+            </span>
+        </div>
+    );
+}
+
 function SuccessPanel({ result, checkType }: { result: ScanResult; checkType: string }) {
     const tone = resultTone(result);
     const checkLabel = CHECK_TYPE_LABEL[checkType as keyof typeof CHECK_TYPE_LABEL] ?? checkType;
+    const ringClass = tone === 'good' ? 'ring-emerald-400/70' : 'ring-amber-400/70';
+
     return (
         <>
-            <UserAvatar student={result.student} className="size-24 ring-4 ring-white/20" fallbackClassName="text-2xl" />
+            {/*
+              The photo is the whole point of this panel — the officer is
+              comparing a face to a face. It gets a ring in the outcome's hue
+              so the verdict is already legible while they're still looking at
+              the photo, instead of needing a second glance down at a label.
+            */}
+            <UserAvatar
+                student={result.student}
+                className={cn('size-32 shadow-2xl ring-4', ringClass, tone === 'good' ? 'shadow-emerald-500/40' : 'shadow-amber-500/40')}
+                fallbackClassName="text-3xl"
+            />
             <div>
                 <Text className="text-lg font-semibold text-white">{studentFullName(result.student)}</Text>
                 <Text className="text-white/70">{studentMeta(result.student)}</Text>
             </div>
-            <div className="flex items-center gap-2">
-                {tone === 'good' ? (
-                    <CheckCircle2 className="size-5 text-emerald-400" />
-                ) : (
-                    <AlertTriangle className="size-5 text-amber-400" />
+            <span
+                className={cn(
+                    'flex items-center gap-2 rounded-full px-4 py-2 text-small font-semibold text-white',
+                    tone === 'good' ? 'bg-emerald-500 shadow-lg shadow-emerald-500/40' : 'bg-amber-500 shadow-lg shadow-amber-500/40',
                 )}
-                <Text className={cn('font-medium', tone === 'good' ? 'text-emerald-400' : 'text-amber-400')}>
-                    {resultHeadline(result, checkLabel)}
-                </Text>
-            </div>
+            >
+                {tone === 'good' ? <CheckCircle2 className="size-4" /> : <AlertTriangle className="size-4" />}
+                {resultHeadline(result, checkLabel)}
+            </span>
             {formatScanTime(result.scannedAt) && (
                 <Text variant="caption" className="text-white/60">
                     Scanned at {formatScanTime(result.scannedAt)}
@@ -485,15 +567,13 @@ function SuccessPanel({ result, checkType }: { result: ScanResult; checkType: st
 }
 
 function OutcomeBadge({ result, checkType }: { result: ScanResult; checkType: string }) {
-    const tone = resultTone(result);
+    const tone = OUTCOME_TONE[resultTone(result)];
     const checkLabel = CHECK_TYPE_LABEL[checkType as keyof typeof CHECK_TYPE_LABEL] ?? checkType;
+
     return (
-        <Badge
-            variant={tone === 'good' ? 'default' : 'secondary'}
-            className={cn(tone === 'warn' && 'bg-amber-500 text-white')}
-        >
+        <span className={cn('rounded-full px-2.5 py-1 text-caption font-medium whitespace-nowrap', TONE[tone].chip)}>
             {resultHeadline(result, checkLabel)}
-        </Badge>
+        </span>
     );
 }
 

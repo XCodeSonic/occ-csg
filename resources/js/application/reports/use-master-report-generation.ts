@@ -5,6 +5,12 @@ import type { MasterRosterReportFilters, ReportGeneration } from '@/infrastructu
 
 const POLL_INTERVAL_MS = 1500;
 
+// See use-roster-report-generation.ts for the full reasoning: without a
+// ceiling, a job that dies mid-way on the server never flips to
+// completed/failed and this hook polls forever for as long as the tab
+// stays open.
+const POLL_TIMEOUT_MS = 5 * 60 * 1000;
+
 // The bar animates on its own clock instead of only jumping on real
 // poll results. Real percentages from the server are coarse (a master
 // report with one group has only 1-3 actual steps — dompdf in
@@ -49,6 +55,7 @@ export function useMasterReportGeneration() {
     const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const animationRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const targetPercentageRef = useRef(0); // last known REAL percentage from the server
+    const pollStartedAtRef = useRef(0); // Date.now() when the current poll loop began
 
     const clearPoll = useCallback(() => {
         if (pollTimeoutRef.current !== null) {
@@ -103,6 +110,12 @@ export function useMasterReportGeneration() {
                     return;
                 }
 
+                if (Date.now() - pollStartedAtRef.current >= POLL_TIMEOUT_MS) {
+                    clearAnimation();
+                    setError('This is taking longer than expected. Please try again.');
+                    return;
+                }
+
                 pollTimeoutRef.current = setTimeout(() => poll(id), POLL_INTERVAL_MS);
             } catch {
                 clearAnimation();
@@ -120,6 +133,7 @@ export function useMasterReportGeneration() {
             setGeneration(null);
             setDisplayPercentage(0);
             targetPercentageRef.current = 0;
+            pollStartedAtRef.current = Date.now();
 
             const created = await httpReportsRepository.startMasterReportGeneration(filters);
             setGeneration(created);

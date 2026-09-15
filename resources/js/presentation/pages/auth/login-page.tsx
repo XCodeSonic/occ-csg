@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { isAxiosError } from 'axios';
 import { toast } from 'sonner';
 
+import { ShieldAlert } from 'lucide-react';
+
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,6 +19,9 @@ import { useRememberedAccountsStore, type RememberedAccount } from '@/applicatio
 import { recordLoginRateLimit, useIsRateLimited } from '@/application/auth/use-login-rate-limit';
 import { useAcceptTerms } from '@/application/auth/use-accept-terms';
 import { useLogin } from '@/application/auth/use-login';
+import { Tile } from '@/presentation/components/tile';
+import { TONE } from '@/presentation/components/tone';
+import { cn } from '@/lib/utils';
 import { httpAuthRepository } from '@/infrastructure/auth/auth.repository.http';
 
 // Three things the login screen can show. "picker" is the default whenever
@@ -232,10 +237,10 @@ export function LoginPage() {
             <form onSubmit={handleFormSubmit} className="space-y-4">
                 <div className="space-y-2">
                     <Label htmlFor="studentNumber">Student ID Number</Label>
-                                        <Input
+                    <Input
                         id="studentNumber"
                         autoComplete="username"
-                                                inputMode="numeric"
+                        inputMode="numeric"
                         placeholder="e.g. 2023-1-05413"
                         value={studentNumber}
                         onChange={(event) => setStudentNumber(formatStudentNumber(event.target.value))}
@@ -271,12 +276,29 @@ export function LoginPage() {
                         required
                     />
                 </div>
+                {/* Same move as PasswordStepView: the lockout is a notice in
+                    its own right, not a label crammed onto the button. */}
+                {isFormViewRateLimited && (
+                    <div className={cn('flex items-start gap-3 rounded-2xl border p-3', TONE.red.wash)} role="alert">
+                        <Tile tone="red" size="sm" variant="solid" Icon={ShieldAlert} />
+                        <div className="min-w-0">
+                            <Text variant="small" className="font-medium text-foreground">
+                                {RATE_LIMITED_MESSAGE}
+                            </Text>
+                            <Text variant="caption">Too many sign-in attempts from this device.</Text>
+                        </div>
+                    </div>
+                )}
+
                 <Button type="submit" className="w-full" disabled={login.isPending || isFormViewRateLimited}>
-                    {isFormViewRateLimited ? RATE_LIMITED_MESSAGE : login.isPending ? 'Signing in…' : 'Sign in'}
+                    {login.isPending ? 'Signing in…' : 'Sign in'}
                 </Button>
-                <Text variant="caption" className="text-center">
-                    First time signing in? Your default password was given to you by your department.
-                </Text>
+
+                <div className="rounded-2xl bg-muted p-3">
+                    <Text variant="caption" className="text-center">
+                        First time signing in? Your default password was given to you by your department.
+                    </Text>
+                </div>
                 {rememberedAccounts.length > 0 && (
                     <button
                         type="button"

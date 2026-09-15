@@ -14,11 +14,12 @@ use Symfony\Component\HttpFoundation\Response;
  *
  * Deliberately conservative: this app is a same-origin SPA (see
  * routes/web.php's catch-all serving the same `app` view react-router
- * handles client-side) with no third-party embeds or trackers — the only
- * outside origin it legitimately talks to is Google Fonts, linked
- * directly in app.blade.php. If a third-party script/font/embed is ever
- * added, its origin needs to be added to the relevant directive below or
- * it will be silently blocked by the browser, not by this middleware.
+ * handles client-side) with no third-party embeds, trackers, or CDN
+ * dependencies — Instrument Sans is bundled by Vite and served from this
+ * origin (see resources/js/app.tsx), not loaded from Google Fonts. If a
+ * third-party script/font/embed is ever added, its origin needs to be
+ * added to the relevant directive below or it will be silently blocked
+ * by the browser, not by this middleware.
  */
 class AddSecurityHeaders
 {
@@ -56,12 +57,10 @@ class AddSecurityHeaders
         $directives = [
             "default-src 'self'",
             "img-src 'self' data:",
-            // fonts.gstatic.com is where the actual font files the
-            // googleapis.com stylesheet below references are hosted.
-            "font-src 'self' data: https://fonts.gstatic.com",
-            // fonts.googleapis.com serves the @font-face CSS itself
-            // (app.blade.php links it directly, not through Vite).
-            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+            // Instrument Sans is now bundled by Vite and served from
+            // this origin — no external font-src origin needed.
+            "font-src 'self' data:",
+            "style-src 'self' 'unsafe-inline'",
             "script-src 'self'",
             "connect-src 'self'",
             "frame-ancestors 'none'",

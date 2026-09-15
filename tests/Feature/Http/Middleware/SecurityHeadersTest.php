@@ -23,14 +23,14 @@ it('sets a content security policy on the spa shell', function () {
         ->toContain("frame-ancestors 'none'");
 });
 
-it('allows the Google Fonts stylesheet and font origins, since app.blade.php links them directly', function () {
+it('keeps font and style origins self-hosted now that Instrument Sans is bundled by Vite instead of linked from Google Fonts', function () {
     $csp = $this->get('/')->headers->get('Content-Security-Policy');
 
     expect($csp)
-        ->toContain('style-src')
-        ->toContain('https://fonts.googleapis.com')
-        ->toContain('font-src')
-        ->toContain('https://fonts.gstatic.com');
+        ->toContain("font-src 'self' data:")
+        ->toContain("style-src 'self' 'unsafe-inline'")
+        ->not->toContain('fonts.googleapis.com')
+        ->not->toContain('fonts.gstatic.com');
 });
 
 it('skips the content security policy entirely in local development, since the Vite dev server needs origins CSP cannot safely express', function () {

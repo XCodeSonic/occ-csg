@@ -115,6 +115,8 @@ export interface MyAttendanceSession {
      */
     attendanceStatus: AttendanceStatus | null;
     scannedAt: string | null;
+    /** Who scanned this record — null while it's still pending (no scan yet). */
+    scannedByName: string | null;
 }
 
 export interface MyAttendanceDay {
@@ -141,6 +143,7 @@ interface RawMyAttendanceSession {
     session_status: string;
     attendance_status: string | null;
     scanned_at: string | null;
+    scanned_by_name: string | null;
 }
 
 interface RawMyAttendanceDay {
@@ -175,6 +178,7 @@ function toMyEventAttendance(raw: RawMyEventAttendance): MyEventAttendance {
                 sessionStatus: session.session_status as SessionStatus,
                 attendanceStatus: session.attendance_status as AttendanceStatus | null,
                 scannedAt: session.scanned_at,
+                scannedByName: session.scanned_by_name,
             })),
         })),
     };
@@ -195,6 +199,7 @@ export interface MyAttendanceHistoryEntry {
     sessionStatus: SessionStatus;
     attendanceStatus: AttendanceStatus | null;
     scannedAt: string | null;
+    scannedByName: string | null;
 }
 
 interface RawMyAttendanceHistoryEntry {
@@ -212,6 +217,7 @@ interface RawMyAttendanceHistoryEntry {
     session_status: string;
     attendance_status: string | null;
     scanned_at: string | null;
+    scanned_by_name: string | null;
 }
 
 function toMyAttendanceHistoryEntry(raw: RawMyAttendanceHistoryEntry): MyAttendanceHistoryEntry {
@@ -230,6 +236,7 @@ function toMyAttendanceHistoryEntry(raw: RawMyAttendanceHistoryEntry): MyAttenda
         sessionStatus: raw.session_status as SessionStatus,
         attendanceStatus: raw.attendance_status as AttendanceStatus | null,
         scannedAt: raw.scanned_at,
+        scannedByName: raw.scanned_by_name,
     };
 }
 

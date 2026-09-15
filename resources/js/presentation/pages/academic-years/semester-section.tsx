@@ -14,8 +14,9 @@ import { useUpdateSemester } from '@/application/semesters/use-update-semester';
 import { useSetSemesterActive } from '@/application/semesters/use-set-semester-active';
 import type { Semester } from '@/domain/entities';
 import { Semester as SemesterTerm, SEMESTER_LABEL } from '@/domain/enums';
-import { formatDate } from '@/lib/utils';
+import { cn, formatDate } from '@/lib/utils';
 import { Text } from '@/presentation/components/typography';
+import { TONE } from '@/presentation/components/tone';
 
 // Every academic year has exactly these three terms (backend: App\Domain\Enums\Semester,
 // enforced by StoreSemesterRequest) — a semester's `name` is one of these
@@ -203,10 +204,7 @@ export function SemesterSection({ academicYearId, canManage }: { academicYearId:
                                                 {SEMESTER_LABEL[semester.name as SemesterTerm]}
                                             </Text>
                                             {semester.isActive && (
-                                                <Badge
-                                                    variant="secondary"
-                                                    className="border-transparent bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300"
-                                                >
+                                                <Badge variant="secondary" className={cn('border-transparent', TONE.emerald.chip)}>
                                                     Active
                                                 </Badge>
                                             )}

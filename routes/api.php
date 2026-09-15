@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\AcademicYears\AcademicYearController;
+use App\Http\Controllers\Attendance\AttendanceHistoryController;
+use App\Http\Controllers\Attendance\AttendanceHistoryFilterOptionsController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Dashboard\DashboardController;
 use App\Http\Controllers\Departments\DepartmentController;
@@ -54,6 +56,19 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
 
         Route::post('/exclusions', [ExclusionController::class, 'store']);
         Route::delete('/exclusions/{exclusion}', [ExclusionController::class, 'destroy']);
+
+        // Audit trail: who scanned each attendance record and when,
+        // filterable by course/major/year level/section, scoped to one
+        // event or across all of them (see BuildAttendanceHistory). Same
+        // viewReport ability and SC Admin department-scoping as the rest
+        // of the admin reporting surface.
+        Route::get('/attendance-history', [AttendanceHistoryController::class, 'index']);
+
+        // Distinct major/year-level/section values already on file, for
+        // the ledger's free-text filters to autosuggest against as the
+        // admin types. Same viewReport gate and SC Admin scoping as the
+        // ledger itself.
+        Route::get('/attendance-history/filter-options', [AttendanceHistoryFilterOptionsController::class, 'index']);
 
         // Spec §7.3: the admin worklist a CSG Admin reads before deciding
         // what to reverse — every penalty across every student, filterable

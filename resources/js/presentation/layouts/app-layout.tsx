@@ -10,7 +10,11 @@ export function AppLayout() {
     if (!student) return null;
 
     return (
-        <div className="min-h-svh bg-background">
+        // overflow-x-hidden here is a safety net, not the fix itself — it
+        // stops any one stray-width element deeper in the tree from ever
+        // widening the whole shell and forcing a horizontal scrollbar on
+        // mobile again, the way the department cards did.
+        <div className="min-h-svh overflow-x-hidden bg-background">
             {/* pb-28 clears the floating bottom nav (~4.5rem tall + its own
                 bottom offset) so the last row of content is never hidden
                 behind it. No top header, so pt- accounts for the device's

@@ -5,6 +5,8 @@ import { Text } from '@/presentation/components/typography';
 import { UserAvatar } from '@/presentation/components/user-avatar';
 import type { Student } from '@/domain/entities';
 import { ROLE_LABEL } from '@/domain/enums';
+import { TONE } from '@/presentation/components/tone';
+import { cn } from '@/lib/utils';
 
 export function AppHeader({ student }: { student: Student }) {
     const location = useLocation();
@@ -38,23 +40,25 @@ export function AppHeader({ student }: { student: Student }) {
                     type="button"
                     onClick={handleBack}
                     aria-label="Go back"
-                    className="-ml-1 flex size-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                    className="-ml-1 flex size-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 >
                     <ChevronLeft className="size-5" />
                 </button>
             )}
             <Link
                 to="/account"
-                className="-mx-2 flex min-w-0 flex-1 items-center gap-3 rounded-md px-2 py-1.5 transition-colors hover:bg-accent"
+                className="-mx-2 flex min-w-0 flex-1 items-center gap-3 rounded-2xl px-2 py-1.5 transition-colors hover:bg-muted"
             >
-                <UserAvatar student={student} />
+                {/* Violet ring, matching the account screen and the ID card —
+                    the three places that are about who you are. */}
+                <UserAvatar student={student} className="ring-2 ring-violet-500/15" />
                 <div className="min-w-0">
-                    <Text variant="small" className="leading-tight">
-                        {ROLE_LABEL[student.role]}
-                    </Text>
-                    <Text className="leading-tight font-medium">
+                    <Text className="truncate leading-tight font-medium">
                         {student.firstName} {student.lastName}
                     </Text>
+                    <span className={cn('mt-0.5 inline-block rounded-full px-2 py-0.5 text-caption font-medium', TONE.violet.chip)}>
+                        {ROLE_LABEL[student.role]}
+                    </span>
                 </div>
                 <ChevronRight className="ml-1 size-4 shrink-0 text-muted-foreground" />
             </Link>

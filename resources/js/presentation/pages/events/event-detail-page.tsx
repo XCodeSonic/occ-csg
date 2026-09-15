@@ -1,21 +1,24 @@
 import { type FormEvent, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { FileBarChart } from 'lucide-react';
+import { CalendarDays, CalendarPlus, FileBarChart, Lock, Radio, SearchX } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
 import { useAuthStore } from '@/application/auth/auth.store';
 import { useEvents } from '@/application/events/use-events';
 import { useCreateEventDay } from '@/application/events/use-create-event-day';
 import { useEndEvent } from '@/application/events/use-end-event';
 import { useMyEventAttendance } from '@/application/events/use-my-event-attendance';
 import { EVENT_STATUS_BADGE_CLASS, EVENT_STATUS_LABEL, EventStatus, Role, SessionStatus } from '@/domain/enums';
+import { cn } from '@/lib/utils';
 import { Heading, Text } from '@/presentation/components/typography';
+import { EmptyState, ListSkeleton, SectionHeader } from '@/presentation/components/empty-state';
+import { Tile } from '@/presentation/components/tile';
+import { TONE } from '@/presentation/components/tone';
 import { EventDaySection } from '@/presentation/pages/events/event-day-section';
 import { StudentEventDaySection } from '@/presentation/pages/events/student-event-day-section';
 
@@ -61,9 +64,7 @@ export function EventDetailPage() {
     // passed down so EventDaySection can disable "Start" on every *other*
     // session the moment one goes ongoing, instead of only finding out
     // after the server rejects it.
-    const ongoingSessionId = sortedDays
-        .flatMap((day) => day.sessions)
-        .find((session) => session.status === SessionStatus.Ongoing)?.id ?? null;
+    const ongoingSessionId = sortedDays.flatMap((day) => day.sessions).find((session) => session.status === SessionStatus.Ongoing)?.id ?? null;
 
     function handleEndEvent() {
         if (!event) return;
@@ -75,9 +76,7 @@ export function EventDetailPage() {
         endEvent.mutate(event.id, {
             onSuccess: (result) => {
                 toast.success(
-                    result.sessionsEnded > 0
-                        ? `Event ended. ${result.sessionsEnded} ongoing session(s) were ended too.`
-                        : 'Event ended.',
+                    result.sessionsEnded > 0 ? `Event ended. ${result.sessionsEnded} ongoing session(s) were ended too.` : 'Event ended.',
                 );
             },
             onError: () => toast.error('Could not end event.'),
@@ -105,76 +104,115 @@ export function EventDetailPage() {
     }
 
     if (isLoading) {
-        return <Text variant="small">Loading…</Text>;
+        return (
+            <div className="mx-auto max-w-2xl space-y-4">
+                <div className="h-8 w-56 animate-pulse rounded-full bg-muted" />
+                <ListSkeleton rows={3} />
+            </div>
+        );
     }
 
     if (!event) {
-        return <Text variant="small">Event not found.</Text>;
+        return (
+            <div className="mx-auto max-w-2xl">
+                <EmptyState
+                    Icon={SearchX}
+                    title="Event not found"
+                    description="It may have been removed, or the link is wrong."
+                    action={
+                        <Button size="sm" variant="outline" onClick={() => navigate('/events')}>
+                            Back to events
+                        </Button>
+                    }
+                />
+            </div>
+        );
     }
+
+    const hasOngoingSession = ongoingSessionId !== null;
 
     return (
         <div className="mx-auto max-w-2xl space-y-6">
-            <div className="flex items-start justify-between gap-4">
-                <div>
-                    <div className="flex items-center gap-2">
-                        <Heading level="h1">{event.name}</Heading>
-                        <Badge variant="secondary" className={EVENT_STATUS_BADGE_CLASS[event.status]}>
-                            {EVENT_STATUS_LABEL[event.status]}
-                        </Badge>
+            {/*
+              The event header became a card: a tile that's lit while a
+              session is actually running, the name, and the status badge.
+              Previously the title and its badge sat loose above a divider,
+              which made "is anything happening right now" a question you
+              had to answer by scrolling into the day list.
+            */}
+            <div className={cn('rounded-3xl border bg-card p-5', hasOngoingSession && TONE.emerald.wash)}>
+                <div className="flex items-start gap-3.5">
+                    <Tile
+                        tone={hasOngoingSession ? 'emerald' : isEventEnded ? 'neutral' : 'sky'}
+                        size="lg"
+                        variant={hasOngoingSession ? 'solid' : 'soft'}
+                        Icon={hasOngoingSession ? Radio : isEventEnded ? Lock : CalendarDays}
+                    />
+                    <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <Heading level="h2" className="min-w-0 break-words">
+                                {event.name}
+                            </Heading>
+                            <Badge variant="secondary" className={EVENT_STATUS_BADGE_CLASS[event.status]}>
+                                {EVENT_STATUS_LABEL[event.status]}
+                            </Badge>
+                        </div>
+                        {event.description && <Text variant="small">{event.description}</Text>}
+                        {hasOngoingSession && (
+                            <Text variant="caption" className={cn('mt-1 font-medium', TONE.emerald.text)}>
+                                A session is open for scanning right now.
+                            </Text>
+                        )}
+                        {isEventEnded && <Text variant="caption">Ended — days and sessions are read-only.</Text>}
                     </div>
-                    {event.description && <Text variant="small">{event.description}</Text>}
                 </div>
 
-                <div className="flex shrink-0 gap-2">
-                    {REPORT_ROLES.includes(student.role) && (
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            className="gap-1.5"
-                            onClick={() => navigate(`/events/${event.id}/report`)}
-                        >
-                            <FileBarChart className="size-4" />
-                            Reports
-                        </Button>
-                    )}
-                    {canManage && !isEventEnded && (
-                        <Button size="sm" variant="destructive" onClick={handleEndEvent} disabled={endEvent.isPending}>
-                            {endEvent.isPending ? 'Ending…' : 'End event'}
-                        </Button>
-                    )}
-                </div>
+                {(REPORT_ROLES.includes(student.role) || (canManage && !isEventEnded)) && (
+                    <div className="mt-4 flex flex-wrap gap-2">
+                        {REPORT_ROLES.includes(student.role) && (
+                            <Button size="sm" variant="outline" className="gap-1.5" onClick={() => navigate(`/events/${event.id}/report`)}>
+                                <FileBarChart className="size-4" />
+                                Reports
+                            </Button>
+                        )}
+                        {canManage && !isEventEnded && (
+                            <Button size="sm" variant="destructive" onClick={handleEndEvent} disabled={endEvent.isPending}>
+                                {endEvent.isPending ? 'Ending…' : 'End event'}
+                            </Button>
+                        )}
+                    </div>
+                )}
             </div>
 
-            {isEventEnded && (
-                <Text variant="small" className="text-muted-foreground">
-                    This event has ended. Days and sessions are now read-only.
-                </Text>
-            )}
-
-            <Separator />
-
             <div className="space-y-3">
-                <Heading level="h2">Days</Heading>
+                <SectionHeader Icon={CalendarDays} tone="sky">
+                    Days
+                </SectionHeader>
 
                 {canManage ? (
                     <>
-                        {sortedDays.length === 0 && <Text variant="small">No days scheduled yet.</Text>}
+                        {sortedDays.length === 0 && (
+                            <EmptyState
+                                Icon={CalendarPlus}
+                                title="No days scheduled"
+                                description="Add a day, then add the morning, afternoon and evening sessions that belong to it."
+                            />
+                        )}
 
                         {sortedDays.map((day) => (
-                            <EventDaySection
-                                key={day.id}
-                                day={day}
-                                canManage={!isEventEnded}
-                                ongoingSessionId={ongoingSessionId}
-                            />
+                            <EventDaySection key={day.id} day={day} canManage={!isEventEnded} ongoingSessionId={ongoingSessionId} />
                         ))}
                     </>
                 ) : (
                     <>
-                        {myAttendance.isLoading && <Text variant="small">Loading…</Text>}
+                        {myAttendance.isLoading && <ListSkeleton rows={2} />}
 
                         {!myAttendance.isLoading && (myAttendance.data?.days.length ?? 0) === 0 && (
-                            <Text variant="small">No days scheduled yet.</Text>
+                            <EmptyState
+                                Icon={CalendarDays}
+                                title="No days scheduled yet"
+                                description="Sessions appear here once CSG schedules them."
+                            />
                         )}
 
                         {myAttendance.data?.days
@@ -184,36 +222,40 @@ export function EventDetailPage() {
                     </>
                 )}
 
-                {canManage && !isEventEnded &&
+                {canManage &&
+                    !isEventEnded &&
                     (isCreatingDay ? (
                         <Card>
-                            <CardHeader>
-                                <Text variant="small">New day</Text>
-                            </CardHeader>
-                            <CardContent>
+                            <CardContent className="pt-6">
                                 <form onSubmit={handleCreateDay} className="space-y-4">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="dayDate">Date</Label>
-                                        <Input
-                                            id="dayDate"
-                                            type="date"
-                                            value={dayForm.date}
-                                            onChange={(e) => setDayForm((prev) => ({ ...prev, date: e.target.value }))}
-                                            required
-                                        />
+                                    <div className="flex items-center gap-2.5">
+                                        <Tile tone="sky" size="sm" variant="soft" Icon={CalendarPlus} />
+                                        <Text variant="small" className="font-medium text-foreground">
+                                            New day
+                                        </Text>
                                     </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="dayNumber">Day number</Label>
-                                        <Input
-                                            id="dayNumber"
-                                            type="number"
-                                            min={1}
-                                            value={dayForm.dayNumber}
-                                            onChange={(e) =>
-                                                setDayForm((prev) => ({ ...prev, dayNumber: e.target.value }))
-                                            }
-                                            required
-                                        />
+                                    <div className="grid gap-4 sm:grid-cols-2">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="dayDate">Date</Label>
+                                            <Input
+                                                id="dayDate"
+                                                type="date"
+                                                value={dayForm.date}
+                                                onChange={(e) => setDayForm((prev) => ({ ...prev, date: e.target.value }))}
+                                                required
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="dayNumber">Day number</Label>
+                                            <Input
+                                                id="dayNumber"
+                                                type="number"
+                                                min={1}
+                                                value={dayForm.dayNumber}
+                                                onChange={(e) => setDayForm((prev) => ({ ...prev, dayNumber: e.target.value }))}
+                                                required
+                                            />
+                                        </div>
                                     </div>
                                     <div className="flex gap-2">
                                         <Button type="submit" disabled={createEventDay.isPending}>
@@ -234,17 +276,20 @@ export function EventDetailPage() {
                             </CardContent>
                         </Card>
                     ) : (
-                        <Button
-                            size="sm"
-                            variant="outline"
+                        // Dashed, like "use a different account" on the login
+                        // screen: an add-slot at the end of a list, not a
+                        // button competing with the day cards above it.
+                        <button
+                            type="button"
                             onClick={() => {
                                 setDayForm({ date: '', dayNumber: String(nextDayNumber) });
                                 setIsCreatingDay(true);
                             }}
-                            className="w-full"
+                            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-border p-4 text-small font-medium text-muted-foreground transition-colors hover:border-sky-500/40 hover:text-foreground"
                         >
-                            Add day
-                        </Button>
+                            <CalendarPlus className="size-4" />
+                            Add day {nextDayNumber}
+                        </button>
                     ))}
             </div>
         </div>

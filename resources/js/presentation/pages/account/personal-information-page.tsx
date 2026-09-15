@@ -2,13 +2,17 @@ import { useRef, useState } from 'react';
 import { isAxiosError } from 'axios';
 import { toast } from 'sonner';
 
+import { Camera, GraduationCap, Hash, IdCard, UserRound } from 'lucide-react';
+
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
 import { useAuthStore } from '@/application/auth/auth.store';
 import { useUpdateStudentPhoto } from '@/application/students/use-update-student-photo';
 import { AvatarPhotoEditor } from '@/presentation/components/avatar-photo-editor';
 import { Heading, Text } from '@/presentation/components/typography';
+import { Tile } from '@/presentation/components/tile';
+import type { Tone } from '@/presentation/components/tone';
+import type { LucideIcon } from 'lucide-react';
 
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
 const ACCEPTED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
@@ -20,13 +24,26 @@ function initials(firstName: string, lastName: string) {
 interface DetailRowProps {
     label: string;
     value: string;
+    Icon: LucideIcon;
+    tone: Tone;
 }
 
-function DetailRow({ label, value }: DetailRowProps) {
+/**
+ * Read-only fact about the student. Laid out as label-above-value rather
+ * than label-left/value-right: a long full name in a right-aligned column
+ * was truncating on a phone, and the thing being truncated was the value,
+ * which is the only part worth reading.
+ */
+function DetailRow({ label, value, Icon, tone }: DetailRowProps) {
     return (
-        <div className="flex items-center justify-between gap-4 px-4 py-3">
-            <Text variant="small">{label}</Text>
-            <Text className="truncate text-right">{value}</Text>
+        <div className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3">
+            <Tile tone={tone} variant="soft" Icon={Icon} />
+            <div className="min-w-0">
+                <Text variant="caption" className="leading-none">
+                    {label}
+                </Text>
+                <Text className="mt-1 truncate font-medium leading-none">{value}</Text>
+            </div>
         </div>
     );
 }
@@ -99,13 +116,16 @@ export function PersonalInformationPage() {
                 </Text>
             </div>
 
-            <div className="flex items-center gap-4">
-                <Avatar className="size-20">
+            <div className="flex items-center gap-4 rounded-3xl border bg-card p-4">
+                <Avatar className="size-20 shadow-lg shadow-violet-500/20 ring-4 ring-violet-500/10">
                     {student.photoUrl ? <AvatarImage src={student.photoUrl} alt={`${student.firstName} ${student.lastName}`} /> : null}
-                    <AvatarFallback className="text-lg">{initials(student.firstName, student.lastName)}</AvatarFallback>
+                    <AvatarFallback className="bg-violet-500/10 text-lg text-violet-600 dark:text-violet-400">
+                        {initials(student.firstName, student.lastName)}
+                    </AvatarFallback>
                 </Avatar>
                 <div className="space-y-1.5">
-                    <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+                    <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={() => fileInputRef.current?.click()}>
+                        <Camera className="size-4" />
                         Change photo
                     </Button>
                     <Text variant="caption" className="block">
@@ -121,14 +141,11 @@ export function PersonalInformationPage() {
                 />
             </div>
 
-            <div className="overflow-hidden rounded-lg border border-border">
-                <DetailRow label="Full name" value={fullName} />
-                <Separator />
-                <DetailRow label="Student number" value={student.studentNumber} />
-                <Separator />
-                <DetailRow label="Department" value={department} />
-                <Separator />
-                <DetailRow label="Year & section" value={yearAndSection} />
+            <div className="space-y-2">
+                <DetailRow label="Full name" value={fullName} Icon={UserRound} tone="violet" />
+                <DetailRow label="Student number" value={student.studentNumber} Icon={Hash} tone="sky" />
+                <DetailRow label="Department" value={department} Icon={IdCard} tone="orange" />
+                <DetailRow label="Year & section" value={yearAndSection} Icon={GraduationCap} tone="emerald" />
             </div>
 
             {pendingFile && (

@@ -33,7 +33,12 @@ final class BuildMyEventAttendance
      *    reported directly as 'excluded' rather than sitting as
      *    perpetually-pending.
      *
-     * @return array{event_id:int, event_name:string, days:array}
+     * @return array{event_id:int, event_name:string, event_status:string, days:array<array{
+     *     id:int, date:string, day_number:int, sessions:array<array{
+     *         id:int, window_type:string, check_type:string, start_time:string, end_time:string,
+     *         session_status:string, attendance_status:?string, scanned_at:?string, scanned_by_name:?string,
+     *     }>,
+     * }>}
      */
     public function __invoke(EventModel $event, Student $student): array
     {
@@ -43,6 +48,7 @@ final class BuildMyEventAttendance
 
         $records = AttendanceRecord::whereIn('session_id', $sessions->pluck('id'))
             ->where('student_id', $student->id)
+            ->with('scannedBy:id,first_name,last_name')
             ->get()
             ->keyBy('session_id');
 
@@ -84,6 +90,12 @@ final class BuildMyEventAttendance
                                 ? AttendanceStatus::Excluded->value
                                 : $record?->status->value,
                             'scanned_at' => $record?->scanned_at?->toIso8601String(),
+                            // "Who scanned me" — no scan exists for an
+                            // Absent/Excluded/pending row, so this stays
+                            // null rather than guessing.
+                            'scanned_by_name' => $record?->scannedBy
+                                ? trim("{$record->scannedBy->first_name} {$record->scannedBy->last_name}")
+                                : null,
                         ];
                     })
                     ->all(),

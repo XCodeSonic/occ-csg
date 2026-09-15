@@ -32,6 +32,19 @@ class AttendanceRecord extends Model
     }
 
     /**
+     * Who scanned this record. Points at the students table like
+     * `student()` does — staff accounts (Officer/SC Admin/CSG Admin/
+     * System Admin) live in that same table as role-flagged rows rather
+     * than a separate staff table (see Student::isAttendanceEligibleForEvent
+     * for the same assumption elsewhere), so "the scanning officer" and
+     * "the attendee" are both Student models, just distinguished by role.
+     */
+    public function scannedBy(): BelongsTo
+    {
+        return $this->belongsTo(Student::class, 'scanned_by');
+    }
+
+    /**
      * Present/absent/late records inherit their event scope transitively
      * through session -> event_day -> event (no denormalized event_id
      * column here — see the events/semesters migration notes). This scope

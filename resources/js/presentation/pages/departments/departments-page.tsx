@@ -17,7 +17,9 @@ import { useUpdateDepartmentLogo } from '@/application/departments/use-update-de
 import { useDeleteDepartment } from '@/application/departments/use-delete-department';
 import type { Department } from '@/domain/entities';
 import { Role } from '@/domain/enums';
+import { cn } from '@/lib/utils';
 import { Heading, Text } from '@/presentation/components/typography';
+import { DEPARTMENT_TONES, TONE } from '@/presentation/components/tone';
 
 const MANAGE_ROLES: Role[] = [Role.SystemAdmin, Role.CsgAdmin];
 
@@ -210,17 +212,19 @@ export function DepartmentsPage() {
             {!isLoading && departments?.length === 0 && <Text variant="small">No departments yet.</Text>}
 
             <div className="space-y-3">
-                {departments?.map((department) => (
-                    <Card key={department.id}>
+                {departments?.map((department, index) => {
+                    const tone = DEPARTMENT_TONES[index % DEPARTMENT_TONES.length];
+                    return (
+                    <Card key={department.id} className="overflow-hidden">
                         {editingId === department.id ? (
                             <CardContent className="pt-6">
                                 <form onSubmit={(event) => handleEditSubmit(event, department.id)} className="space-y-4">
                                     <div className="flex items-center gap-3">
-                                        <Avatar size="lg" className="rounded-md">
+                                        <Avatar size="lg" className="rounded-2xl">
                                             {department.logoUrl ? (
                                                 <AvatarImage src={department.logoUrl} alt={department.code} />
                                             ) : null}
-                                            <AvatarFallback className="rounded-md">
+                                            <AvatarFallback className={cn('rounded-2xl', TONE[tone].soft)}>
                                                 <Building2 className="size-4" />
                                             </AvatarFallback>
                                         </Avatar>
@@ -265,16 +269,16 @@ export function DepartmentsPage() {
                                 </form>
                             </CardContent>
                         ) : (
-                            <CardContent className="flex items-center justify-between gap-4 pt-6">
-                                <div className="flex items-center gap-3">
-                                    <Avatar size="lg" className="rounded-md">
+                            <CardContent className="flex items-center justify-between gap-3 pt-6">
+                                <div className="flex min-w-0 items-center gap-3">
+                                    <Avatar size="lg" className="rounded-2xl">
                                         {department.logoUrl ? <AvatarImage src={department.logoUrl} alt={department.code} /> : null}
-                                        <AvatarFallback className="rounded-md">
+                                        <AvatarFallback className={cn('rounded-2xl', TONE[tone].soft)}>
                                             <Building2 className="size-4" />
                                         </AvatarFallback>
                                     </Avatar>
-                                    <div>
-                                        <Text className="font-medium">{department.name}</Text>
+                                    <div className="min-w-0">
+                                        <Text className="truncate font-medium">{department.name}</Text>
                                         <Text variant="small">{department.code}</Text>
                                     </div>
                                 </div>
@@ -297,7 +301,8 @@ export function DepartmentsPage() {
                             </CardContent>
                         )}
                     </Card>
-                ))}
+                    );
+                })}
             </div>
 
             <Separator />

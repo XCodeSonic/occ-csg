@@ -6,29 +6,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { Text } from '@/presentation/components/typography';
-
-const BAR_STYLE = 'bg-foreground';
-
-/** #1 gets a quiet amber tint, #2/#3 a quiet neutral tint — just enough to
- * mark "this is a ranking" without a literal gold/silver/bronze medal. */
-const RANK_TONES = [
-    'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400',
-    'border-border bg-muted text-foreground',
-    'border-border bg-muted text-foreground',
-];
-
-export function RankBadge({ rank }: { rank: number }) {
-    return (
-        <span
-            className={cn(
-                'flex size-7 shrink-0 items-center justify-center rounded-full border text-xs font-bold tabular-nums',
-                RANK_TONES[rank] ?? 'border-border text-foreground',
-            )}
-        >
-            {rank + 1}
-        </span>
-    );
-}
+import { Tile } from '@/presentation/components/tile';
+import { TONE, type Tone } from '@/presentation/components/tone';
 
 export interface LeaderboardEntry {
     id: string | number;
@@ -47,22 +26,43 @@ const row: Variants = {
 };
 
 /**
- * Ranked list with a gold/silver/bronze badge and a gradient percentage
- * bar per row — the shared visual language for "how is the whole split
- * up", used identically for penalties-by-event and attendance-by-
- * department so the two read as the same kind of breakdown.
+ * Rank marker. #1 is the only lit one — the glow is the medal, which is
+ * both quieter and more consistent with the rest of the dashboard than an
+ * actual gold/silver/bronze ramp would be. Everything below it is a plain
+ * numeral, because "not first" doesn't need three shades of its own.
+ */
+function RankBadge({ rank, tone }: { rank: number; tone: Tone }) {
+    if (rank === 0) {
+        return (
+            <Tile tone={tone} size="sm" variant="solid">
+                <span className="text-xs font-bold tabular-nums">1</span>
+            </Tile>
+        );
+    }
+
+    return (
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-muted text-xs font-bold tabular-nums text-muted-foreground">
+            {rank + 1}
+        </span>
+    );
+}
+
+/**
+ * Ranked list — the shared visual language for "how is the whole split up",
+ * used identically for penalties-by-event and attendance-by-department so
+ * the two read as the same kind of breakdown.
  */
 export function Leaderboard({
     entries,
     emptyLabel,
-    barClassName = BAR_STYLE,
+    tone = 'amber',
 }: {
     entries: LeaderboardEntry[];
     emptyLabel: string;
-    /** Tailwind bg-* class for the share bar's fill — lets callers give each
-     * leaderboard (departments vs. penalties, say) its own accent color
-     * instead of every ranked list on the page looking identical. */
-    barClassName?: string;
+    /** Hue for the leader's tile and the share bars — lets each leaderboard
+     *  inherit its section's color instead of every ranked list on the page
+     *  looking identical. */
+    tone?: Tone;
 }) {
     if (entries.length === 0) {
         return (
@@ -83,7 +83,7 @@ export function Leaderboard({
                             <>
                                 <div className="flex items-center justify-between gap-2">
                                     <div className="flex min-w-0 items-center gap-2.5">
-                                        <RankBadge rank={index} />
+                                        <RankBadge rank={index} tone={tone} />
                                         <Text
                                             variant="small"
                                             className={cn('truncate font-medium text-foreground', entry.href && 'group-hover:underline')}
@@ -93,8 +93,12 @@ export function Leaderboard({
                                     </div>
                                     <span className="shrink-0 font-semibold tabular-nums text-foreground">{entry.value}</span>
                                 </div>
-                                <div className="ml-9.5 flex items-center gap-2">
-                                    <Progress value={entry.percentage} className="h-1.5" indicatorClassName={barClassName} />
+                                <div className="ml-10.5 flex items-center gap-2">
+                                    <Progress
+                                        value={entry.percentage}
+                                        className="h-1.5"
+                                        indicatorClassName={index === 0 ? TONE[tone].bar : 'bg-muted-foreground/30'}
+                                    />
                                     <span className="w-10 shrink-0 text-right text-caption tabular-nums text-muted-foreground">
                                         {Math.round(entry.percentage)}%
                                     </span>

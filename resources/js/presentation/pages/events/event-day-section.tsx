@@ -2,6 +2,8 @@ import { type FormEvent, useState } from 'react';
 import { isAxiosError } from 'axios';
 import { toast } from 'sonner';
 
+import { CalendarDays, Moon, Plus, Sun, Sunrise, type LucideIcon } from 'lucide-react';
+
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -13,8 +15,18 @@ import { useEndSession } from '@/application/sessions/use-end-session';
 import { useStartSession } from '@/application/sessions/use-start-session';
 import type { EventDayWithSessions } from '@/domain/entities';
 import { CHECK_TYPE_LABEL, CheckType, SESSION_STATUS_BADGE_CLASS, SessionStatus, WindowType, WINDOW_TYPE_LABEL } from '@/domain/enums';
-import { formatDate } from '@/lib/utils';
+import { cn, formatDate } from '@/lib/utils';
 import { Text } from '@/presentation/components/typography';
+import { Tile } from '@/presentation/components/tile';
+import { TONE, type Tone } from '@/presentation/components/tone';
+
+/** Window → icon + hue. Same pairing as the dashboard's streak strip, the
+ *  event schedule and the scanner, so a "Morning" row is amber everywhere. */
+const WINDOW_STYLE: Record<string, { Icon: LucideIcon; tone: Tone }> = {
+    [WindowType.Morning]: { Icon: Sunrise, tone: 'amber' },
+    [WindowType.Afternoon]: { Icon: Sun, tone: 'orange' },
+    [WindowType.Evening]: { Icon: Moon, tone: 'violet' },
+};
 
 interface SessionFormValues {
     windowType: string;
@@ -137,36 +149,60 @@ export function EventDaySection({
         : CHECK_TYPE_OPTIONS;
 
     return (
-        <div className="space-y-3 rounded-lg border border-border p-4">
-            <Text className="font-medium">
-                Day {day.dayNumber} — {formatDate(day.date)}
-            </Text>
+        <div className="space-y-3 rounded-3xl border border-border bg-card p-4">
+            <div className="flex items-center gap-2.5">
+                <Tile tone="sky" size="sm" variant="soft" Icon={CalendarDays} />
+                <div className="min-w-0">
+                    <Text variant="small" className="font-medium text-foreground">
+                        Day {day.dayNumber}
+                    </Text>
+                    <Text variant="caption">{formatDate(day.date)}</Text>
+                </div>
+            </div>
 
-            {day.sessions.length === 0 && !isCreating && <Text variant="small">No sessions yet.</Text>}
+            {day.sessions.length === 0 && !isCreating && (
+                <Text variant="small" className="px-0.5">
+                    No sessions yet — add the windows this day runs.
+                </Text>
+            )}
 
             <div className="space-y-2">
-                {day.sessions.map((session) => (
+                {day.sessions.map((session) => {
+                    const windowStyle = WINDOW_STYLE[session.windowType] ?? { Icon: Sun, tone: 'neutral' as Tone };
+                    const isOngoing = session.status === SessionStatus.Ongoing;
+
+                    return (
                     <div
                         key={session.id}
-                        className="flex items-center justify-between gap-4 rounded-md border border-border p-3"
+                        className={cn(
+                            'flex items-center justify-between gap-3 rounded-2xl border border-border p-3',
+                            // Only the running session is filled and washed.
+                            // Everything else on the day stays quiet.
+                            isOngoing && TONE.emerald.wash,
+                        )}
                     >
-                        <div>
-                            <div className="flex items-center gap-2">
-                                <Text className="font-medium">{WINDOW_TYPE_LABEL[session.windowType]}</Text>
-                                <Badge variant="outline">{CHECK_TYPE_LABEL[session.checkType]}</Badge>
-                                <Badge variant="secondary" className={SESSION_STATUS_BADGE_CLASS[session.status]}>
-                                    {session.status}
-                                </Badge>
+                        <div className="flex min-w-0 items-center gap-3">
+                            <Tile tone={windowStyle.tone} variant={isOngoing ? 'solid' : 'soft'} Icon={windowStyle.Icon} />
+                            <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                    <Text variant="small" className="font-medium text-foreground">
+                                        {WINDOW_TYPE_LABEL[session.windowType]} · {CHECK_TYPE_LABEL[session.checkType]}
+                                    </Text>
+                                    <Badge variant="secondary" className={SESSION_STATUS_BADGE_CLASS[session.status]}>
+                                        {session.status}
+                                    </Badge>
+                                </div>
+                                <Text variant="caption">
+                                    {session.startTime}–{session.endTime}
+                                    {session.graceMinutes ? ` · +${session.graceMinutes}m grace` : ''}
+                                </Text>
                             </div>
-                            <Text variant="small">
-                                {session.startTime}–{session.endTime}
-                                {session.graceMinutes ? ` (+${session.graceMinutes}m grace)` : ''}
-                            </Text>
                         </div>
 
                         {canManage && session.status === SessionStatus.Scheduled && (
                             <Button
                                 size="sm"
+                                className="shrink-0"
                                 onClick={() => handleStart(session.id)}
                                 disabled={startSession.isPending || (ongoingSessionId !== null && ongoingSessionId !== session.id)}
                                 title={
@@ -183,6 +219,7 @@ export function EventDaySection({
                             <Button
                                 size="sm"
                                 variant="destructive"
+                                className="shrink-0"
                                 onClick={() => handleEnd(session.id)}
                                 disabled={endSession.isPending}
                             >
@@ -190,13 +227,19 @@ export function EventDaySection({
                             </Button>
                         )}
                     </div>
-                ))}
+                    );
+                })}
             </div>
 
             {canManage && availableWindowOptions.length > 0 && (
-                <Button size="sm" variant="outline" onClick={() => setIsCreating(true)} className="w-full">
+                <button
+                    type="button"
+                    onClick={() => setIsCreating(true)}
+                    className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-border p-3 text-small font-medium text-muted-foreground transition-colors hover:border-sky-500/40 hover:text-foreground"
+                >
+                    <Plus className="size-4" />
                     Add session
-                </Button>
+                </button>
             )}
 
             <Dialog
@@ -281,8 +324,9 @@ export function EventDaySection({
                             </div>
                         </div>
 
-                        <div className="space-y-2">
+                        <div className="space-y-2 rounded-2xl border border-border p-3">
                             <Label htmlFor={`graceMinutes-${day.id}`}>Grace period (minutes)</Label>
+                            <Text variant="caption">Scans inside this window still count as Present.</Text>
                             <Input
                                 id={`graceMinutes-${day.id}`}
                                 type="number"

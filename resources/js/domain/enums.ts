@@ -122,9 +122,9 @@ export const ATTENDANCE_STATUS_LABEL: Record<AttendanceStatus, string> = {
  * soon" — hasn't started yet).
  */
 export const SESSION_STATUS_BADGE_CLASS: Record<SessionStatus, string> = {
-    [SessionStatus.Scheduled]: 'border-transparent bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
-    [SessionStatus.Ongoing]: 'border-transparent bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300',
-    [SessionStatus.Ended]: 'border-transparent bg-gray-100 text-gray-700 dark:bg-gray-800/60 dark:text-gray-300',
+    [SessionStatus.Scheduled]: 'border-transparent bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300',
+    [SessionStatus.Ongoing]: 'border-transparent bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300',
+    [SessionStatus.Ended]: 'border-transparent bg-muted text-muted-foreground',
 };
 
 /**
@@ -140,8 +140,8 @@ export const EVENT_STATUS_LABEL: Record<EventStatus, string> = {
  * SESSION_STATUS_BADGE_CLASS: ongoing is emerald, ended is neutral gray.
  */
 export const EVENT_STATUS_BADGE_CLASS: Record<EventStatus, string> = {
-    [EventStatus.Ongoing]: 'border-transparent bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300',
-    [EventStatus.Ended]: 'border-transparent bg-gray-100 text-gray-700 dark:bg-gray-800/60 dark:text-gray-300',
+    [EventStatus.Ongoing]: 'border-transparent bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300',
+    [EventStatus.Ended]: 'border-transparent bg-muted text-muted-foreground',
 };
 
 /**
@@ -150,9 +150,22 @@ export const EVENT_STATUS_BADGE_CLASS: Record<EventStatus, string> = {
  * red, excluded/pending stay neutral gray.
  */
 export const ATTENDANCE_STATUS_BADGE_CLASS: Record<AttendanceStatus, string> = {
-    [AttendanceStatus.Present]: 'border-transparent bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300',
-    [AttendanceStatus.Late]: 'border-transparent bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
-    [AttendanceStatus.Absent]: 'border-transparent bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300',
-    [AttendanceStatus.Excluded]: 'border-transparent bg-gray-100 text-gray-700 dark:bg-gray-800/60 dark:text-gray-300',
-    [AttendanceStatus.Pending]: 'border-transparent bg-gray-100 text-gray-700 dark:bg-gray-800/60 dark:text-gray-300',
+    [AttendanceStatus.Present]: 'border-transparent bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300',
+    [AttendanceStatus.Late]: 'border-transparent bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300',
+    [AttendanceStatus.Absent]: 'border-transparent bg-red-100 text-red-800 dark:bg-red-500/15 dark:text-red-300',
+    [AttendanceStatus.Excluded]: 'border-transparent bg-muted text-muted-foreground',
+    [AttendanceStatus.Pending]: 'border-transparent bg-muted text-muted-foreground',
 };
+
+/*
+  The three maps above are now the exact `chip` strings from
+  presentation/components/tone.ts, copied rather than imported — domain
+  must not depend on presentation, and these are the one place that rule
+  costs something. Keep them in sync by hand; tone.ts is the source.
+
+  Two changes from before: dark mode uses a translucent /15 tint instead of
+  a solid -900/40 (which read as a muddy block against the #171717 card),
+  and the neutral states use the app's own `muted` tokens instead of
+  hardcoded gray, so "Ended"/"Pending" actually match the surrounding
+  surface in both themes.
+*/

@@ -32,7 +32,14 @@ it('rejects a string that was never encrypted by this app', function () {
 
 it('rejects a tampered token', function () {
     $token = QrPayload::forStudent('2021000001', 1)->encrypt();
-    $tampered = substr($token, 0, 10).'X'.substr($token, 11);
+
+    // Flip a character rather than overwriting with a fixed 'X': the token's
+    // IV is random per encryption, so on the rare run where the byte at this
+    // position already happened to be 'X', a hardcoded overwrite would be a
+    // silent no-op and the test would flake. Swapping to a value guaranteed
+    // different from the original always produces a real tamper.
+    $replacement = $token[10] === 'X' ? 'Y' : 'X';
+    $tampered = substr($token, 0, 10).$replacement.substr($token, 11);
 
     QrPayload::decrypt($tampered);
 })->throws(InvalidQrPayloadException::class);

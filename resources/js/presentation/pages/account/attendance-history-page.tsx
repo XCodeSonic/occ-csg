@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Wallet } from 'lucide-react';
+import { CalendarX, Moon, ReceiptText, Sun, Sunrise, Wallet, type LucideIcon } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -17,8 +17,26 @@ import {
 } from '@/domain/enums';
 import { cn, formatCurrency, formatDate, formatScannedAt, formatTimeOfDay } from '@/lib/utils';
 import { Heading, Text } from '@/presentation/components/typography';
+import { EmptyState, ListSkeleton } from '@/presentation/components/empty-state';
+import { Tile } from '@/presentation/components/tile';
+import { TONE, type Tone } from '@/presentation/components/tone';
 
 const ALL = 'all';
+
+const WINDOW_STYLE: Record<string, { Icon: LucideIcon; tone: Tone }> = {
+    morning: { Icon: Sunrise, tone: 'amber' },
+    afternoon: { Icon: Sun, tone: 'orange' },
+    evening: { Icon: Moon, tone: 'violet' },
+};
+
+/** Attendance status → the hue it carries everywhere else in the app. */
+const STATUS_TONE: Record<string, Tone> = {
+    [AttendanceStatus.Present]: 'emerald',
+    [AttendanceStatus.Late]: 'amber',
+    [AttendanceStatus.Absent]: 'red',
+    [AttendanceStatus.Excluded]: 'neutral',
+    [AttendanceStatus.Pending]: 'neutral',
+};
 
 // Ties a penalty back to the session it was issued for. Penalty entries
 // don't carry a sessionId of their own (see MyPenaltyHistoryController —
@@ -126,22 +144,10 @@ export function AttendanceHistoryPage() {
             </div>
 
             {isStudent && !isPenaltyLoading && penaltyHistory && (
-                <div className="flex items-center justify-between rounded-lg border border-border p-3">
-                    <div className="flex items-center gap-2">
-                        <Wallet className="size-4 text-muted-foreground" />
-                        <Text variant="small">{isFiltered ? 'Penalty total for current filters' : 'Total penalty balance'}</Text>
-                    </div>
-                    <span
-                        className={cn(
-                            'text-h3 font-semibold tabular-nums',
-                            (isFiltered ? visiblePenaltyTotal : penaltyHistory.total) > 0
-                                ? 'text-red-600 dark:text-red-400'
-                                : 'text-emerald-600 dark:text-emerald-400',
-                        )}
-                    >
-                        {formatCurrency(isFiltered ? visiblePenaltyTotal : penaltyHistory.total)}
-                    </span>
-                </div>
+                <BalanceBanner
+                    total={isFiltered ? visiblePenaltyTotal : penaltyHistory.total}
+                    label={isFiltered ? 'Penalty total for current filters' : 'Total penalty balance'}
+                />
             )}
 
             <div className="grid grid-cols-2 gap-3">
@@ -174,12 +180,18 @@ export function AttendanceHistoryPage() {
                 </Select>
             </div>
 
-            {isLoading && <Text variant="small">Loading…</Text>}
+            {isLoading && <ListSkeleton rows={3} />}
 
             {!isLoading && filteredEntries.length === 0 && (
-                <Text variant="small">
-                    {entries && entries.length > 0 ? 'No sessions match these filters.' : 'No attendance history yet.'}
-                </Text>
+                <EmptyState
+                    Icon={CalendarX}
+                    title={entries && entries.length > 0 ? 'Nothing matches these filters' : 'No attendance history yet'}
+                    description={
+                        entries && entries.length > 0
+                            ? 'Try widening the event or status filter above.'
+                            : 'Your record fills in after your first scanned session.'
+                    }
+                />
             )}
 
             <div className="space-y-2">
@@ -187,42 +199,45 @@ export function AttendanceHistoryPage() {
                     const status = entry.attendanceStatus ?? AttendanceStatus.Pending;
                     const penalties = penaltiesBySession.get(sessionKey(entry)) ?? [];
 
+                    const windowStyle = WINDOW_STYLE[entry.windowType] ?? { Icon: Sun, tone: 'neutral' as Tone };
+
                     return (
-                        <div key={entry.sessionId} className="space-y-2 rounded-lg border border-border p-3">
-                            <div className="flex items-center justify-between gap-3">
-                                <Text className="font-medium">{entry.eventName}</Text>
-                                <Badge variant="secondary" className={ATTENDANCE_STATUS_BADGE_CLASS[status]}>
-                                    {ATTENDANCE_STATUS_LABEL[status]}
-                                </Badge>
-                            </div>
+                        <div key={entry.sessionId} className="space-y-2 rounded-2xl border border-border bg-card p-3">
+                            <div className="flex items-start gap-3">
+                                {/* The window tile is filled in the status's hue,
+                                    not the window's — on this screen the thing
+                                    you're scanning for is your result, and one
+                                    lit square per row is what makes a column of
+                                    thirty rows readable. */}
+                                <Tile tone={STATUS_TONE[status] ?? 'neutral'} variant="solid" Icon={windowStyle.Icon} />
 
-                            <div className="flex items-center justify-between gap-3">
-                                <div>
-                                    <div className="flex items-center gap-2">
-                                        <Text variant="small">
-                                            Day {entry.dayNumber} — {formatDate(entry.date)}
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex flex-wrap items-center gap-1.5">
+                                        <Text variant="small" className="min-w-0 truncate font-medium text-foreground">
+                                            {entry.eventName}
                                         </Text>
+                                        <Badge variant="secondary" className={ATTENDANCE_STATUS_BADGE_CLASS[status]}>
+                                            {ATTENDANCE_STATUS_LABEL[status]}
+                                        </Badge>
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                        <Text variant="small" className="text-foreground">
-                                            {WINDOW_TYPE_LABEL[entry.windowType]}
-                                        </Text>
-                                        <Badge variant="outline">{CHECK_TYPE_LABEL[entry.checkType]}</Badge>
-                                        <Text variant="small">
-                                            {formatTimeOfDay(entry.startTime)}–{formatTimeOfDay(entry.endTime)}
-                                        </Text>
-                                    </div>
-                                </div>
-
-                                {entry.scannedAt && (
-                                    <Text variant="small" className="text-muted-foreground">
-                                        {formatScannedAt(entry.scannedAt)}
+                                    <Text variant="caption">
+                                        Day {entry.dayNumber} · {formatDate(entry.date)}
                                     </Text>
-                                )}
+                                    <Text variant="caption">
+                                        {WINDOW_TYPE_LABEL[entry.windowType]} · {CHECK_TYPE_LABEL[entry.checkType]} ·{' '}
+                                        {formatTimeOfDay(entry.startTime)}–{formatTimeOfDay(entry.endTime)}
+                                    </Text>
+                                    {entry.scannedAt && (
+                                        <Text variant="caption" className="mt-1">
+                                            {formatScannedAt(entry.scannedAt)}
+                                            {entry.scannedByName ? ` · by ${entry.scannedByName}` : ''}
+                                        </Text>
+                                    )}
+                                </div>
                             </div>
 
                             {penalties.length > 0 && (
-                                <div className="space-y-1.5 border-t border-border pt-2">
+                                <div className={cn('space-y-1.5 rounded-xl border p-2.5', TONE.red.wash)}>
                                     {penalties.map((penalty) => (
                                         <PenaltyDetail key={penalty.id} penalty={penalty} />
                                     ))}
@@ -238,7 +253,7 @@ export function AttendanceHistoryPage() {
                     <Text variant="caption">Other penalties (not tied to a session above)</Text>
                     <div className="space-y-2">
                         {visibleUnmatchedPenalties.map((penalty) => (
-                            <div key={penalty.id} className="space-y-1.5 rounded-lg border border-border p-3">
+                            <div key={penalty.id} className="space-y-1.5 rounded-2xl border border-border bg-card p-3">
                                 <Text className="font-medium">{penalty.eventName}</Text>
                                 <Text variant="small">
                                     Day {penalty.dayNumber} — {formatDate(penalty.date)} · {WINDOW_TYPE_LABEL[penalty.windowType]} ·{' '}
@@ -279,10 +294,30 @@ function PenaltyDetail({ penalty }: { penalty: MyPenaltyEntry }) {
                     {formatCurrency(penalty.amount)}
                 </span>
                 {penalty.isReversed && (
-                    <Badge variant="outline" className="text-muted-foreground">
-                        Reversed
-                    </Badge>
+                    <span className={cn('rounded-full px-2 py-0.5 text-caption font-medium', TONE.neutral.chip)}>Reversed</span>
                 )}
+            </div>
+        </div>
+    );
+}
+
+/**
+ * The running total, as the one lit object on the screen. Emerald when the
+ * student owes nothing — "clear" is worth showing positively rather than as
+ * a neutral zero.
+ */
+function BalanceBanner({ total, label }: { total: number; label: string }) {
+    const owes = total > 0;
+    const tone: Tone = owes ? 'red' : 'emerald';
+
+    return (
+        <div className={cn('flex items-center gap-3.5 rounded-2xl border p-4', TONE[tone].wash)}>
+            <Tile tone={tone} size="lg" variant="solid" Icon={owes ? Wallet : ReceiptText} />
+            <div className="min-w-0">
+                <Text variant="caption">{label}</Text>
+                <span className={cn('block text-h2 leading-tight font-semibold tabular-nums', TONE[tone].text)}>
+                    {formatCurrency(total)}
+                </span>
             </div>
         </div>
     );

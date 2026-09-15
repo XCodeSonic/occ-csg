@@ -6,6 +6,7 @@ import { AccountPage } from '@/presentation/pages/account/account-page';
 import { AttendanceHistoryPage } from '@/presentation/pages/account/attendance-history-page';
 import { FaqPage } from '@/presentation/pages/account/faq-page';
 import { PersonalInformationPage } from '@/presentation/pages/account/personal-information-page';
+import { AttendanceHistoryAdminPage } from '@/presentation/pages/attendance-history/attendance-history-admin-page';
 import { ChangePasswordPage } from '@/presentation/pages/auth/change-password-page';
 import { LoginPage } from '@/presentation/pages/auth/login-page';
 import { DashboardPage } from '@/presentation/pages/dashboard/dashboard-page';
@@ -42,6 +43,7 @@ export const router = createBrowserRouter([
                         children: [
                             { path: '/dashboard', element: <DashboardPage /> },
                             { path: '/academic-years', element: <AcademicYearsPage /> },
+                            { path: '/attendance-history', element: <AttendanceHistoryAdminPage /> },
                             { path: '/departments', element: <DepartmentsPage /> },
                             { path: '/events', element: <EventsPage /> },
                             { path: '/events/:eventId', element: <EventDetailPage /> },

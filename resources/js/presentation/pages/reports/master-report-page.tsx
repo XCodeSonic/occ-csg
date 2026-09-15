@@ -1,4 +1,15 @@
-import { ChevronRight, FileBarChart, FileSpreadsheet, FileText, Loader2 } from 'lucide-react';
+import {
+    CheckCircle2,
+    ChevronRight,
+    Clock,
+    FileBarChart,
+    FileSpreadsheet,
+    FileText,
+    Loader2,
+    MinusCircle,
+    XCircle,
+    type LucideIcon,
+} from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -17,26 +28,22 @@ import { useMasterReport } from '@/application/reports/use-master-report';
 import { useMasterReportGeneration } from '@/application/reports/use-master-report-generation';
 import { EVENT_STATUS_BADGE_CLASS, EVENT_STATUS_LABEL, Role } from '@/domain/enums';
 import { Heading, Text } from '@/presentation/components/typography';
+import { StatTile } from '@/presentation/components/tile';
+import type { Tone } from '@/presentation/components/tone';
 
 // Mirrors EventModelPolicy::viewRosterReport exactly — same three roles
 // as the per-event roster report page.
 const REPORT_ROLES: Role[] = [Role.SystemAdmin, Role.CsgAdmin, Role.ScAdmin];
 
-const STAT_CLASS = {
-    present: 'text-emerald-700 dark:text-emerald-400',
-    late: 'text-amber-700 dark:text-amber-400',
-    absent: 'text-red-700 dark:text-red-400',
-    excluded: 'text-gray-600 dark:text-gray-400',
-} as const;
-
-function EventStat({ label, value, tone }: { label: string; value: number; tone: keyof typeof STAT_CLASS }) {
-    return (
-        <div className="flex flex-col items-center gap-0.5 rounded-md border border-border/60 px-2 py-2">
-            <span className={`text-h3 font-semibold ${STAT_CLASS[tone]}`}>{value}</span>
-            <span className="text-caption text-muted-foreground">{label}</span>
-        </div>
-    );
-}
+// Same status→tile language as the dashboard/attendance history, so an
+// event card here reads the same way those do rather than inventing its
+// own bordered mini-box style.
+const EVENT_STAT_CONFIG: { key: 'present' | 'late' | 'absent' | 'excluded'; label: string; tone: Tone; Icon: LucideIcon }[] = [
+    { key: 'present', label: 'Present', tone: 'emerald', Icon: CheckCircle2 },
+    { key: 'late', label: 'Late', tone: 'amber', Icon: Clock },
+    { key: 'absent', label: 'Absent', tone: 'red', Icon: XCircle },
+    { key: 'excluded', label: 'Excluded', tone: 'neutral', Icon: MinusCircle },
+];
 
 export function MasterReportPage() {
     const navigate = useNavigate();
@@ -186,11 +193,10 @@ export function MasterReportPage() {
                                             </Button>
                                         </CardHeader>
                                         <CardContent>
-                                            <div className="grid grid-cols-4 gap-2">
-                                                <EventStat label="Present" value={event.present} tone="present" />
-                                                <EventStat label="Late" value={event.late} tone="late" />
-                                                <EventStat label="Absent" value={event.absent} tone="absent" />
-                                                <EventStat label="Excluded" value={event.excluded} tone="excluded" />
+                                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                                                {EVENT_STAT_CONFIG.map(({ key, label, tone, Icon }) => (
+                                                    <StatTile key={key} label={label} value={event[key]} Icon={Icon} tone={tone} />
+                                                ))}
                                             </div>
                                         </CardContent>
                                     </Card>

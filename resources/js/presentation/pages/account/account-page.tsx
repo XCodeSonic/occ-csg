@@ -1,16 +1,16 @@
 import { CalendarCheck, HelpCircle, LogOut, UserRound } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-import { Separator } from '@/components/ui/separator';
 import { useAuthStore } from '@/application/auth/auth.store';
 import { useMyPenaltyHistory } from '@/application/penalties/use-my-penalty-history';
 import { httpAuthRepository } from '@/infrastructure/auth/auth.repository.http';
-import { Role } from '@/domain/enums';
-import { formatCurrency } from '@/lib/utils';
+import { Role, ROLE_LABEL } from '@/domain/enums';
+import { cn, formatCurrency } from '@/lib/utils';
 import { Heading, Text } from '@/presentation/components/typography';
 import { SettingsRow } from '@/presentation/components/settings-row';
 import { UserAvatar } from '@/presentation/components/user-avatar';
 import { PoweredByLogos } from '@/presentation/components/powered-by-logos';
+import { TONE } from '@/presentation/components/tone';
 
 export function AccountPage() {
     const student = useAuthStore((state) => state.student);
@@ -36,45 +36,63 @@ export function AccountPage() {
         }
     }
 
-    return (
-        <div className="mx-auto max-w-md space-y-8">
-            <div>
-                <Heading level="h1">Account</Heading>
-            </div>
+    const owes = (penaltyHistory?.total ?? 0) > 0;
 
-            <div className="flex flex-col items-center gap-3 text-center">
-                <UserAvatar student={student} className="size-20" fallbackClassName="text-h2" />
-                <div>
-                    <Text variant="small">{student.studentNumber}</Text>
-                    <Heading level="h3" as="p">
-                        {student.firstName} {student.lastName}
-                    </Heading>
+    return (
+        <div className="mx-auto max-w-md space-y-6">
+            <Heading level="h1">Account</Heading>
+
+            {/*
+              The identity block was a bare avatar on the page background.
+              It's a card now, with the same violet pool behind it that the
+              login screen and the QR card use — the three places in the app
+              that are about *who you are* rather than what's happening.
+            */}
+            <div className="relative overflow-hidden rounded-3xl border bg-card p-6">
+                <span
+                    aria-hidden
+                    className="pointer-events-none absolute -top-20 left-1/2 size-64 -translate-x-1/2 rounded-full bg-violet-500 opacity-[0.07] blur-3xl dark:opacity-[0.12]"
+                />
+                <div className="relative flex flex-col items-center gap-3 text-center">
+                    <UserAvatar
+                        student={student}
+                        className="size-20 shadow-lg shadow-violet-500/20 ring-4 ring-violet-500/10"
+                        fallbackClassName="text-h2"
+                    />
+                    <div>
+                        <Heading level="h3" as="p">
+                            {student.firstName} {student.lastName}
+                        </Heading>
+                        <Text variant="caption" className="font-mono tracking-wide">
+                            {student.studentNumber}
+                        </Text>
+                    </div>
+                    <span className={cn('rounded-full px-3 py-1 text-caption font-medium', TONE.violet.chip)}>{ROLE_LABEL[student.role]}</span>
                 </div>
             </div>
 
-            <div className="overflow-hidden rounded-lg border border-border">
-                <SettingsRow to="/account/personal-information" icon={<UserRound className="size-5" />}>
+            {/* Each row keeps its own hue so the list is scannable by color;
+                the balance is red only when something is actually owed. */}
+            <div className="space-y-2">
+                <SettingsRow to="/account/personal-information" tone="violet" icon={<UserRound />}>
                     Personal information
                 </SettingsRow>
-                <Separator />
                 <SettingsRow
                     to="/account/attendance-history"
-                    icon={<CalendarCheck className="size-5" />}
+                    tone={isStudent && owes ? 'red' : 'emerald'}
+                    icon={<CalendarCheck />}
                     trailing={isStudent ? formatCurrency(penaltyHistory?.total ?? 0) : undefined}
                 >
                     Attendance & Penalties
                 </SettingsRow>
-                <Separator />
-                <SettingsRow to="/account/faq" icon={<HelpCircle className="size-5" />}>
+                <SettingsRow to="/account/faq" tone="sky" icon={<HelpCircle />}>
                     FAQ
                 </SettingsRow>
             </div>
 
-            <div className="overflow-hidden rounded-lg border border-border">
-                <SettingsRow onClick={handleLogout} icon={<LogOut className="size-5" />} destructive>
-                    Log out
-                </SettingsRow>
-            </div>
+            <SettingsRow onClick={handleLogout} icon={<LogOut />} destructive>
+                Log out
+            </SettingsRow>
 
             <PoweredByLogos />
         </div>

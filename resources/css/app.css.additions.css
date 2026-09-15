@@ -1,0 +1,40 @@
+/*
+ * Two optional edits to resources/css/app.css. Neither is required — the
+ * redesign works without them — but both nudge the whole app toward the
+ * softness of the streak card.
+ *
+ * 1. Radius. The card primitive is rounded-xl, which at --radius: 0.5rem
+ *    resolves to a fairly tight 8px corner. The tiles are 16px. Bumping the
+ *    base to 0.75rem lands cards at 12px, so card → tile reads as one
+ *    family of curves instead of two.
+ *
+ *    In :root, change:
+ *        --radius: 0.5rem;
+ *    to:
+ *        --radius: 0.75rem;
+ *
+ * 2. Glow in dark mode. Colored shadows against a #0a0a0a background go
+ *    nearly invisible — the shadow is darker than the thing casting it. The
+ *    tone tokens already drop dark-mode glows to /20, but if you want them
+ *    to actually read as light rather than shadow, add this and the glow
+ *    becomes a soft halo instead.
+ */
+
+@layer utilities {
+    /* Apply alongside a `shadow-<color>-500/30` tile when you want the glow
+       to survive dark mode. Paint it behind the element, not under it. */
+    .dark .tile-halo {
+        box-shadow:
+            0 8px 20px -6px color-mix(in oklab, currentColor 45%, transparent),
+            0 0 0 1px color-mix(in oklab, currentColor 20%, transparent);
+    }
+}
+
+/* Reduced motion: the hero's blurred glow pool animates in on mount. Users
+   who've asked for less movement get it pre-placed instead. */
+@media (prefers-reduced-motion: reduce) {
+    [data-glow] {
+        transition: none !important;
+        animation: none !important;
+    }
+}

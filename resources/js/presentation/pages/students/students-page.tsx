@@ -21,7 +21,27 @@ import { useEvents } from '@/application/events/use-events';
 import type { BulkImportPreview, BulkImportReport } from '@/application/students/students.repository';
 import type { Student } from '@/domain/entities';
 import { Role, ROLE_LABEL } from '@/domain/enums';
+import { cn } from '@/lib/utils';
 import { Heading, Text } from '@/presentation/components/typography';
+import { Tile } from '@/presentation/components/tile';
+import { TONE, type Tone } from '@/presentation/components/tone';
+
+// Same tinted-squircle language as the dashboard: a role gets one
+// consistent hue everywhere it shows up (row avatar, "change role" chip),
+// rather than every page inventing its own badge palette.
+const ROLE_TONE: Record<Role, Tone> = {
+    [Role.SystemAdmin]: 'violet',
+    [Role.CsgAdmin]: 'violet',
+    [Role.ScAdmin]: 'sky',
+    [Role.Officer]: 'orange',
+    [Role.Student]: 'neutral',
+};
+
+function initials(firstName: string, lastName: string): string {
+    const a = firstName.trim().charAt(0);
+    const b = lastName.trim().charAt(0);
+    return (a + b).toUpperCase() || '?';
+}
 
 // System Admin can promote up to csg_admin; CSG Admin cannot reach that
 // high. Mirrors StudentPolicy::assignRole's $assignable sets exactly.
@@ -628,24 +648,36 @@ export function StudentsPage() {
                                 </form>
                             </CardContent>
                         ) : (
-                            <CardContent className="flex items-center justify-between gap-4 pt-6">
-                                <div className="min-w-0">
-                                    <div className="flex flex-wrap items-center gap-2">
-                                        <Text className="font-medium">
-                                            {row.lastName}, {row.firstName} {row.middleName ?? ''}
+                            <CardContent className="flex items-center justify-between gap-3 pt-6">
+                                <div className="flex min-w-0 items-center gap-3">
+                                    <Tile tone={ROLE_TONE[row.role]} size="md" variant="soft">
+                                        <span className="text-xs font-bold tabular-nums">
+                                            {initials(row.firstName, row.lastName)}
+                                        </span>
+                                    </Tile>
+                                    <div className="min-w-0">
+                                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                            <Text className="truncate font-medium">
+                                                {row.lastName}, {row.firstName} {row.middleName ?? ''}
+                                            </Text>
+                                            {row.role !== Role.Student && (
+                                                <Badge
+                                                    variant="secondary"
+                                                    className={cn('border-transparent', TONE[ROLE_TONE[row.role]].chip)}
+                                                >
+                                                    {ROLE_LABEL[row.role]}
+                                                </Badge>
+                                            )}
+                                        </div>
+                                        <Text variant="small" className="truncate">
+                                            {row.studentNumber} · {departmentName(row.departmentId)}
+                                            {row.yearLevel ? ` · Yr ${row.yearLevel}` : ''}
+                                            {row.section ? ` · ${row.section}` : ''}
                                         </Text>
-                                        {row.role !== Role.Student && (
-                                            <Badge variant="secondary">{ROLE_LABEL[row.role]}</Badge>
-                                        )}
                                     </div>
-                                    <Text variant="small">
-                                        {row.studentNumber} · {departmentName(row.departmentId)}
-                                        {row.yearLevel ? ` · Yr ${row.yearLevel}` : ''}
-                                        {row.section ? ` · ${row.section}` : ''}
-                                    </Text>
                                 </div>
                                 {canAssignRoles && (
-                                    <Button size="sm" variant="outline" onClick={() => startEditingRole(row)}>
+                                    <Button size="sm" variant="outline" className="shrink-0" onClick={() => startEditingRole(row)}>
                                         Change role
                                     </Button>
                                 )}

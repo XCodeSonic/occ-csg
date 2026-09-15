@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { ChevronRight, Settings, X } from 'lucide-react';
+import { ChevronRight, Settings, UserPlus, X } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
 import { Text } from '@/presentation/components/typography';
 import { UserAvatar } from '@/presentation/components/user-avatar';
+import { TONE } from '@/presentation/components/tone';
 import type { RememberedAccount } from '@/application/auth/remembered-accounts.store';
 import { ROLE_LABEL } from '@/domain/enums';
+import { cn } from '@/lib/utils';
 
 interface AccountPickerRowProps {
     account: RememberedAccount;
@@ -15,24 +15,39 @@ interface AccountPickerRowProps {
     onForget: (studentNumber: string) => void;
 }
 
+/**
+ * Each account is its own card now rather than a row in one bordered list
+ * with separators between. On a phone the separated list read as a table;
+ * discrete cards read as "pick one of these", which is the actual job.
+ *
+ * The avatar carries a soft violet ring so it matches the tile shapes used
+ * everywhere else — a circle inside a rounded square is the one place the
+ * dashboard's squircle doesn't apply, since a face is a face.
+ */
 function AccountPickerRow({ account, managing, onSelect, onForget }: AccountPickerRowProps) {
+    const body = (
+        <>
+            <UserAvatar student={account} className="size-11 ring-2 ring-violet-500/15" />
+            <div className="min-w-0 flex-1 text-left">
+                <Text className="truncate font-medium leading-tight">
+                    {account.firstName} {account.lastName}
+                </Text>
+                <span className={cn('mt-1 inline-block rounded-full px-2 py-0.5 text-caption font-medium', TONE.violet.chip)}>
+                    {ROLE_LABEL[account.role]}
+                </span>
+            </div>
+        </>
+    );
+
     if (managing) {
         return (
-            <div className="flex w-full items-center gap-3 px-4 py-3">
-                <UserAvatar student={account} className="size-10" />
-                <div className="min-w-0 flex-1">
-                    <Text className="truncate font-medium leading-tight">
-                        {account.firstName} {account.lastName}
-                    </Text>
-                    <Text variant="caption" className="truncate">
-                        {ROLE_LABEL[account.role]}
-                    </Text>
-                </div>
+            <div className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card p-3">
+                {body}
                 <button
                     type="button"
                     onClick={() => onForget(account.studentNumber)}
                     aria-label={`Remove ${account.firstName} ${account.lastName} from saved accounts`}
-                    className="flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                    className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-red-500/10 text-red-600 transition-colors hover:bg-red-500 hover:text-white dark:text-red-400 dark:hover:text-white"
                 >
                     <X className="size-4" />
                 </button>
@@ -44,17 +59,9 @@ function AccountPickerRow({ account, managing, onSelect, onForget }: AccountPick
         <button
             type="button"
             onClick={() => onSelect(account)}
-            className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-accent"
+            className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card p-3 transition-all hover:border-violet-500/30 hover:shadow-md hover:shadow-violet-500/10 active:scale-[0.99]"
         >
-            <UserAvatar student={account} className="size-10" />
-            <div className="min-w-0 flex-1">
-                <Text className="truncate font-medium leading-tight">
-                    {account.firstName} {account.lastName}
-                </Text>
-                <Text variant="caption" className="truncate">
-                    {ROLE_LABEL[account.role]}
-                </Text>
-            </div>
+            {body}
             <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
         </button>
     );
@@ -72,10 +79,10 @@ export function AccountPickerView({ accounts, onSelect, onForget, onUseDifferent
 
     return (
         <div className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
                 <Text variant="small">
                     {managing.isManaging
-                        ? 'Tap an account to remove it.'
+                        ? 'Tap the cross to remove an account.'
                         : `${accounts.length} saved ${accounts.length === 1 ? 'account' : 'accounts'}`}
                 </Text>
                 <button
@@ -83,30 +90,38 @@ export function AccountPickerView({ accounts, onSelect, onForget, onUseDifferent
                     onClick={managing.toggle}
                     aria-label={managing.isManaging ? 'Done managing accounts' : 'Manage saved accounts'}
                     aria-pressed={managing.isManaging}
-                    className="flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                >
-                    {managing.isManaging ? (
-                        <Text variant="small" className="font-medium text-foreground">
-                            Done
-                        </Text>
-                    ) : (
-                        <Settings className="size-4" />
+                    className={cn(
+                        'flex h-8 shrink-0 items-center justify-center rounded-xl px-2.5 text-small font-medium transition-colors',
+                        managing.isManaging ? TONE.violet.solid : 'bg-muted text-muted-foreground hover:text-foreground',
                     )}
+                >
+                    {managing.isManaging ? 'Done' : <Settings className="size-4" />}
                 </button>
             </div>
 
-            <div className="overflow-hidden rounded-lg border border-border">
-                {accounts.map((account: RememberedAccount, index: number) => (
-                    <div key={account.studentNumber}>
-                        {index > 0 && <Separator />}
-                        <AccountPickerRow account={account} managing={managing.isManaging} onSelect={onSelect} onForget={onForget} />
-                    </div>
+            <div className="space-y-2">
+                {accounts.map((account: RememberedAccount) => (
+                    <AccountPickerRow
+                        key={account.studentNumber}
+                        account={account}
+                        managing={managing.isManaging}
+                        onSelect={onSelect}
+                        onForget={onForget}
+                    />
                 ))}
             </div>
 
-            <Button type="button" variant="outline" className="w-full" onClick={onUseDifferentAccount}>
+            {/* Dashed rather than solid: this is the "none of the above" door,
+                and an outline button next to filled account cards was pulling
+                more attention than the accounts themselves. */}
+            <button
+                type="button"
+                onClick={onUseDifferentAccount}
+                className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-border p-3 text-small font-medium text-muted-foreground transition-colors hover:border-violet-500/40 hover:text-foreground"
+            >
+                <UserPlus className="size-4" />
                 Use a different account
-            </Button>
+            </button>
 
             <Text variant="caption" className="text-center">
                 Restricted to authorized personnel only.

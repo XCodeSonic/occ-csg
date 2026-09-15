@@ -1,4 +1,5 @@
 import { type FormEvent, useState } from 'react';
+import { CalendarRange } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Badge } from '@/components/ui/badge';
@@ -14,8 +15,10 @@ import { useUpdateAcademicYear } from '@/application/academic-years/use-update-a
 import { useSetAcademicYearActive } from '@/application/academic-years/use-set-academic-year-active';
 import type { AcademicYear } from '@/domain/entities';
 import { Role } from '@/domain/enums';
+import { cn, formatDate } from '@/lib/utils';
 import { Heading, Text } from '@/presentation/components/typography';
-import { formatDate } from '@/lib/utils';
+import { Tile } from '@/presentation/components/tile';
+import { TONE } from '@/presentation/components/tone';
 import { SemesterSection } from '@/presentation/pages/academic-years/semester-section';
 
 const MANAGE_ROLES: Role[] = [Role.SystemAdmin, Role.CsgAdmin];
@@ -234,24 +237,29 @@ export function AcademicYearsPage() {
                                 </form>
                             </CardContent>
                         ) : (
-                            <CardContent className="flex items-center justify-between gap-4 pt-6">
-                                <div>
-                                    <div className="flex items-center gap-2">
-                                        <Text className="font-medium">{year.name}</Text>
-                                        {year.isActive && (
-                                            <Badge
-                                                variant="secondary"
-                                                className="border-transparent bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300"
-                                            >
-                                                Active
-                                            </Badge>
+                            <CardContent className="flex items-center justify-between gap-3 pt-6">
+                                <div className="flex min-w-0 items-center gap-3">
+                                    <Tile
+                                        tone={year.isActive ? 'emerald' : 'neutral'}
+                                        size="md"
+                                        variant="soft"
+                                        Icon={CalendarRange}
+                                    />
+                                    <div className="min-w-0">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <Text className="truncate font-medium">{year.name}</Text>
+                                            {year.isActive && (
+                                                <Badge variant="secondary" className={cn('border-transparent', TONE.emerald.chip)}>
+                                                    Active
+                                                </Badge>
+                                            )}
+                                        </div>
+                                        {(year.startDate || year.endDate) && (
+                                            <Text variant="small">
+                                                {formatDate(year.startDate)} to {formatDate(year.endDate)}
+                                            </Text>
                                         )}
                                     </div>
-                                    {(year.startDate || year.endDate) && (
-                                        <Text variant="small">
-                                            {formatDate(year.startDate)} to {formatDate(year.endDate)}
-                                        </Text>
-                                    )}
                                 </div>
                                 {canManage && (
                                     <div className="flex shrink-0 gap-2">

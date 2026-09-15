@@ -72,9 +72,40 @@ it('flattens every event into one row per session, newest event first', function
     expect($response)->toHaveCount(2);
     expect($response[0]['event_id'])->toBe($newerEvent->id);
     expect($response[0]['attendance_status'])->toBeNull();
+    expect($response[0]['scanned_by_name'])->toBeNull();
     expect($response[1]['event_id'])->toBe($olderEvent->id);
     expect($response[1]['attendance_status'])->toBe('late');
     expect($response[1]['scanned_at'])->not->toBeNull();
+});
+
+it('includes who scanned each record, for the "who scanned this" audit ask', function () {
+    $student = historyTestStudent('student', '2020400005');
+    $officer = historyTestStudent('officer', '2020200002');
+
+    $event = EventModel::create(['name' => 'Intramurals 2026', 'created_by' => $officer->id]);
+    $day = EventDay::create(['event_id' => $event->id, 'date' => '2026-11-10', 'day_number' => 1]);
+    $session = AttendanceSession::create([
+        'event_day_id' => $day->id,
+        'window_type' => 'morning',
+        'check_type' => 'time_in',
+        'start_time' => '07:00',
+        'end_time' => '08:00',
+        'status' => 'ongoing',
+    ]);
+    AttendanceRecord::create([
+        'session_id' => $session->id,
+        'student_id' => $student->id,
+        'scanned_by' => $officer->id,
+        'scanned_at' => now(),
+        'status' => 'present',
+    ]);
+
+    $response = $this->actingAs($student, 'sanctum')
+        ->getJson('/api/my-attendance-history')
+        ->assertStatus(200)
+        ->json('entries');
+
+    expect($response[0]['scanned_by_name'])->toBe('Officer Test');
 });
 
 it('never mixes in another student\'s record', function () {

@@ -1,5 +1,6 @@
 import { type FormEvent, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { Clock, RotateCcw, Wallet, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +17,8 @@ import type { PenaltyLedgerEntry } from '@/infrastructure/penalties/penalties.re
 import { CHECK_TYPE_LABEL, WINDOW_TYPE_LABEL } from '@/domain/enums';
 import { cn, formatCurrency, formatDate, formatScannedAt } from '@/lib/utils';
 import { Heading, Text } from '@/presentation/components/typography';
+import { StatTile, Tile } from '@/presentation/components/tile';
+import { TONE } from '@/presentation/components/tone';
 
 const PER_PAGE = 20;
 
@@ -188,31 +191,24 @@ export function PenaltiesPage() {
                 </div>
 
                 {ledgerPage && (
-                    <Card>
+                    <Card className={cn('border', TONE.red.wash)}>
                         <CardContent className="flex flex-col gap-4 pt-6 sm:flex-row sm:items-center sm:justify-between">
-                            <div>
-                                <Text variant="small">Total (filtered)</Text>
-                                <Text className="text-h1 leading-tight font-semibold tabular-nums text-red-600 dark:text-red-400">
-                                    {formatCurrency(ledgerPage.summary.total)}
-                                </Text>
+                            <div className="flex items-center gap-4">
+                                <Tile tone="red" size="lg" variant="solid" Icon={Wallet} />
+                                <div>
+                                    <Text variant="small">Total (filtered)</Text>
+                                    <span className={cn('block text-h1 leading-tight font-semibold tabular-nums', TONE.red.text)}>
+                                        {formatCurrency(ledgerPage.summary.total)}
+                                    </span>
+                                </div>
                             </div>
-                            {/* justify-between spreads these full-width on
-                                mobile instead of cramming them right; from
-                                `sm` up they sit gapped and right-aligned
-                                next to the total instead. */}
-                            <div className="flex justify-between gap-6 sm:justify-end">
-                                <div className="text-right">
-                                    <Text variant="small">Absent</Text>
-                                    <Text className="font-semibold tabular-nums">{ledgerPage.summary.absentCount}</Text>
-                                </div>
-                                <div className="text-right">
-                                    <Text variant="small">Late</Text>
-                                    <Text className="font-semibold tabular-nums">{ledgerPage.summary.lateCount}</Text>
-                                </div>
-                                <div className="text-right">
-                                    <Text variant="small">Total penalties</Text>
-                                    <Text className="font-semibold tabular-nums">{ledgerPage.summary.count}</Text>
-                                </div>
+                            {/* Grid on mobile so three stats stay legible instead
+                                of cramming into one row; from `sm` up they sit
+                                inline, right-aligned next to the total. */}
+                            <div className="grid grid-cols-3 gap-2 sm:flex sm:gap-2.5">
+                                <StatTile label="Absent" value={ledgerPage.summary.absentCount} Icon={XCircle} tone="red" />
+                                <StatTile label="Late" value={ledgerPage.summary.lateCount} Icon={Clock} tone="amber" />
+                                <StatTile label="Penalties" value={ledgerPage.summary.count} Icon={Wallet} tone="neutral" />
                             </div>
                         </CardContent>
                     </Card>
@@ -224,7 +220,7 @@ export function PenaltiesPage() {
                 )}
 
                 {ledgerPage?.data.map((row) => (
-                    <Card key={row.id}>
+                    <Card key={row.id} className="overflow-hidden">
                         {reversingId === row.id ? (
                             <CardContent>
                                 <form onSubmit={(e) => handleReverseSubmit(e, row)} className="space-y-4">
@@ -253,27 +249,35 @@ export function PenaltiesPage() {
                             </CardContent>
                         ) : (
                             <CardContent className="space-y-3">
-                                <div className="flex items-start justify-between gap-4">
-                                    <div className="min-w-0">
-                                        <Text className="font-medium">
-                                            {row.lastName}, {row.firstName}
-                                        </Text>
-                                        <Text variant="small">
-                                            {row.studentNumber}
-                                            {row.departmentCode ? ` · ${row.departmentCode}` : ''}
-                                        </Text>
+                                <div className="flex items-start justify-between gap-3">
+                                    <div className="flex min-w-0 items-center gap-3">
+                                        <Tile
+                                            tone={row.isReversed ? 'neutral' : 'red'}
+                                            size="md"
+                                            variant="soft"
+                                            Icon={row.isReversed ? RotateCcw : Wallet}
+                                        />
+                                        <div className="min-w-0">
+                                            <Text className="truncate font-medium">
+                                                {row.lastName}, {row.firstName}
+                                            </Text>
+                                            <Text variant="small" className="truncate">
+                                                {row.studentNumber}
+                                                {row.departmentCode ? ` · ${row.departmentCode}` : ''}
+                                            </Text>
+                                        </div>
                                     </div>
                                     <div className="shrink-0 text-right">
-                                        <Text
+                                        <span
                                             className={cn(
-                                                'font-semibold tabular-nums',
-                                                row.isReversed ? 'text-muted-foreground line-through' : 'text-red-600 dark:text-red-400',
+                                                'block font-semibold tabular-nums',
+                                                row.isReversed ? 'text-muted-foreground line-through' : TONE.red.text,
                                             )}
                                         >
                                             {formatCurrency(row.amount)}
-                                        </Text>
+                                        </span>
                                         {row.isReversed && (
-                                            <Badge variant="outline" className="text-muted-foreground">
+                                            <Badge variant="outline" className="mt-1 text-muted-foreground">
                                                 Reversed
                                             </Badge>
                                         )}
@@ -291,9 +295,21 @@ export function PenaltiesPage() {
                                         "Time In" a second time right below the line that already
                                         said it. */}
                                     <Badge
-                                        variant={row.isReversed ? 'outline' : penaltyStatusFromReason(row.reason) === 'Late' ? 'secondary' : 'destructive'}
-                                        className={cn(row.isReversed && 'text-muted-foreground line-through')}
+                                        variant="secondary"
+                                        className={cn(
+                                            'border-transparent',
+                                            row.isReversed
+                                                ? 'text-muted-foreground line-through'
+                                                : penaltyStatusFromReason(row.reason) === 'Late'
+                                                  ? TONE.amber.chip
+                                                  : TONE.red.chip,
+                                        )}
                                     >
+                                        {penaltyStatusFromReason(row.reason) === 'Late' ? (
+                                            <Clock className="size-3" />
+                                        ) : (
+                                            <XCircle className="size-3" />
+                                        )}
                                         {penaltyStatusFromReason(row.reason)}
                                     </Badge>
                                 </div>
