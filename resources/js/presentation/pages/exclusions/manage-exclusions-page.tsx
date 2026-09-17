@@ -29,7 +29,7 @@ import { useRemoveExclusion } from '@/application/exclusions/use-remove-exclusio
 import type { ExclusionListItem } from '@/infrastructure/exclusions/exclusions.repository.http';
 import { EXCLUSION_SCOPE_LABEL, ExclusionScope, WINDOW_TYPE_LABEL, WindowType } from '@/domain/enums';
 import type { EventDayWithSessions } from '@/domain/entities';
-import { formatDate } from '@/lib/utils';
+import { formatDate, formatStudentNumber } from '@/lib/utils';
 import { Heading, Text } from '@/presentation/components/typography';
 import { EmptyState, ListSkeleton, SectionHeader } from '@/presentation/components/empty-state';
 
@@ -88,8 +88,8 @@ function ExclusionRow({ exclusion, onRemove, isRemoving }: { exclusion: Exclusio
     const isRemoved = exclusion.status === 'removed';
 
     return (
-        <div className="flex items-start justify-between gap-3 rounded-2xl border bg-card px-4 py-3">
-            <div className="min-w-0 flex-1">
+        <div className="flex items-start justify-between gap-4 rounded-2xl border bg-card p-4">
+            <div className="min-w-0 flex-1 space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
                     <Text className="font-medium">{exclusion.studentName}</Text>
                     <Text variant="caption" className="text-muted-foreground">
@@ -106,10 +106,10 @@ function ExclusionRow({ exclusion, onRemove, isRemoving }: { exclusion: Exclusio
                         </Badge>
                     )}
                 </div>
-                <Text variant="small" className="mt-1 text-muted-foreground">
+                <Text variant="small" className="text-muted-foreground">
                     {exclusion.reason}
                 </Text>
-                <Text variant="caption" className="mt-1 text-muted-foreground">
+                <Text variant="caption" className="text-muted-foreground">
                     Added by {exclusion.createdBy} on {formatDate(exclusion.createdAt)}
                     {isRemoved && exclusion.removedBy && ` · Removed by ${exclusion.removedBy}`}
                     {exclusion.batchId && ' · Bulk upload'}
@@ -305,7 +305,7 @@ export function ManageExclusionsPage() {
 
     return (
         <div className="mx-auto max-w-2xl space-y-8">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-4">
                 <Button size="icon" variant="ghost" onClick={() => navigate(`/events/${event.id}`)}>
                     <ArrowLeft className="size-4" />
                 </Button>
@@ -325,8 +325,8 @@ export function ManageExclusionsPage() {
                         setIsAddOpen(true);
                     }}
                 >
-                    <UserX className="mr-1.5 size-4" />
-                    Add Exclusion
+                    <UserX className="size-4" />
+                    Add exclusion
                 </Button>
                 <Button
                     size="sm"
@@ -338,8 +338,8 @@ export function ManageExclusionsPage() {
                         setIsBulkOpen(true);
                     }}
                 >
-                    <Upload className="mr-1.5 size-4" />
-                    Bulk Upload
+                    <Upload className="size-4" />
+                    Bulk upload
                 </Button>
             </div>
 
@@ -387,7 +387,7 @@ export function ManageExclusionsPage() {
             <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Add Exclusion</DialogTitle>
+                        <DialogTitle>Add exclusion</DialogTitle>
                         <DialogDescription>
                             {addForm.scope === ExclusionScope.Event &&
                                 'Applies to the whole event — every day and window that has not ended yet.'}
@@ -398,7 +398,7 @@ export function ManageExclusionsPage() {
                     </DialogHeader>
 
                     <form onSubmit={handleAddSubmit} className="space-y-4">
-                        <div className="space-y-1.5">
+                        <div className="space-y-2">
                             <Label>Scope</Label>
                             <Select
                                 value={addForm.scope}
@@ -418,7 +418,7 @@ export function ManageExclusionsPage() {
                         </div>
 
                         {addForm.scope !== ExclusionScope.Event && (
-                            <div className="space-y-1.5">
+                            <div className="space-y-2">
                                 <Label>Day</Label>
                                 <Select
                                     value={addForm.eventDayId}
@@ -444,7 +444,7 @@ export function ManageExclusionsPage() {
                         )}
 
                         {addForm.scope === ExclusionScope.Window && (
-                            <div className="space-y-1.5">
+                            <div className="space-y-2">
                                 <Label>Window</Label>
                                 <Select
                                     value={addForm.windowType}
@@ -468,7 +468,7 @@ export function ManageExclusionsPage() {
                                     </SelectContent>
                                 </Select>
                                 {selectedDay && availableWindows.length === 0 && (
-                                    <Text variant="caption" className="flex items-center gap-1 text-amber-600">
+                                    <Text variant="caption" className="flex items-center gap-2 text-amber-600">
                                         <AlertTriangle className="size-3.5" />
                                         Every window on this day has already ended.
                                     </Text>
@@ -476,17 +476,17 @@ export function ManageExclusionsPage() {
                             </div>
                         )}
 
-                        <div className="space-y-1.5">
-                            <Label htmlFor="add-exclusion-student">Student Number</Label>
+                        <div className="space-y-2">
+                            <Label htmlFor="add-exclusion-student">Student number</Label>
                             <Input
                                 id="add-exclusion-student"
                                 value={addForm.studentNumber}
-                                onChange={(e) => setAddForm((prev) => ({ ...prev, studentNumber: e.target.value }))}
-                                placeholder="e.g. 2023105413"
+                                onChange={(e) => setAddForm((prev) => ({ ...prev, studentNumber: formatStudentNumber(e.target.value) }))}
+                                placeholder="e.g. 2023-1-05413"
                             />
                         </div>
 
-                        <div className="space-y-1.5">
+                        <div className="space-y-2">
                             <Label htmlFor="add-exclusion-reason">Reason</Label>
                             <Input
                                 id="add-exclusion-reason"
@@ -501,7 +501,7 @@ export function ManageExclusionsPage() {
                                 Cancel
                             </Button>
                             <Button type="submit" disabled={createExclusion.isPending}>
-                                {createExclusion.isPending ? 'Adding…' : 'Add Exclusion'}
+                                {createExclusion.isPending ? 'Adding…' : 'Add exclusion'}
                             </Button>
                         </DialogFooter>
                     </form>
@@ -512,15 +512,15 @@ export function ManageExclusionsPage() {
             <Dialog open={isBulkOpen} onOpenChange={setIsBulkOpen}>
                 <DialogContent className="sm:max-w-lg">
                     <DialogHeader>
-                        <DialogTitle>Bulk Upload Exclusions</DialogTitle>
+                        <DialogTitle>Bulk upload exclusions</DialogTitle>
                         <DialogDescription>
                             CSV columns: student_id, scope (EVENT/DAY/WINDOW), day, window. One reason applies to the whole batch.
                         </DialogDescription>
                     </DialogHeader>
 
                     <div className="space-y-4">
-                        <div className="space-y-1.5">
-                            <Label htmlFor="bulk-exclusion-file">CSV File</Label>
+                        <div className="space-y-2">
+                            <Label htmlFor="bulk-exclusion-file">CSV file</Label>
                             <Input
                                 id="bulk-exclusion-file"
                                 key={bulkFileInputKey}
@@ -530,7 +530,7 @@ export function ManageExclusionsPage() {
                             />
                         </div>
 
-                        <div className="space-y-1.5">
+                        <div className="space-y-2">
                             <Label htmlFor="bulk-exclusion-reason">Reason (applies to every row)</Label>
                             <Input
                                 id="bulk-exclusion-reason"
@@ -551,7 +551,7 @@ export function ManageExclusionsPage() {
                                         {previewBulk.data.valid} of {previewBulk.data.totalRows} row(s) will be excluded.
                                     </Text>
                                     {previewBulk.data.invalid > 0 && (
-                                        <div className="max-h-40 space-y-1 overflow-y-auto">
+                                        <div className="max-h-40 space-y-2 overflow-y-auto">
                                             {previewBulk.data.rows
                                                 .filter((row) => !row.valid)
                                                 .map((row) => (
@@ -575,7 +575,7 @@ export function ManageExclusionsPage() {
                             onClick={handleBulkConfirm}
                             disabled={!bulkFile || !previewBulk.data || bulkReason.trim() === '' || createBulk.isPending}
                         >
-                            {createBulk.isPending ? 'Uploading…' : 'Confirm & Exclude'}
+                            {createBulk.isPending ? 'Uploading…' : 'Confirm & exclude'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

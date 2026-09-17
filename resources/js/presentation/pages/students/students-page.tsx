@@ -21,7 +21,7 @@ import { useEvents } from '@/application/events/use-events';
 import type { BulkImportPreview, BulkImportReport } from '@/application/students/students.repository';
 import type { Student } from '@/domain/entities';
 import { Role, ROLE_LABEL } from '@/domain/enums';
-import { cn } from '@/lib/utils';
+import { cn, formatStudentNumber } from '@/lib/utils';
 import { Heading, Text } from '@/presentation/components/typography';
 import { UserAvatar } from '@/presentation/components/user-avatar';
 import { TONE, type Tone } from '@/presentation/components/tone';
@@ -269,7 +269,8 @@ export function StudentsPage() {
                                 <Input
                                     id="studentNumber"
                                     value={createForm.studentNumber}
-                                    onChange={(e) => setCreateForm((f) => ({ ...f, studentNumber: e.target.value }))}
+                                    onChange={(e) => setCreateForm((f) => ({ ...f, studentNumber: formatStudentNumber(e.target.value) }))}
+                                    placeholder="e.g. 2023-1-05413"
                                     required
                                 />
                             </div>

@@ -70,3 +70,22 @@ export function formatCurrency(value: number): string {
         currency: 'PHP',
     }).format(value);
 }
+
+/**
+ * Student IDs are stored (and matched on) in dashed form —
+ * "2023-1-05413" — but typing dashes is annoying, so this reformats
+ * whatever's typed/pasted into that shape as the person goes. It works
+ * off the raw digits every time rather than patching the previous
+ * string, so deleting a digit right after a dash correctly collapses
+ * the dash too, instead of leaving a stray "2023-" behind.
+ *
+ * Shared by every field that captures a student number (login, Add
+ * student, Add exclusion, ...) so the mask behaves identically and
+ * can't drift between them.
+ */
+export function formatStudentNumber(raw: string): string {
+    const digits = raw.replace(/\D/g, '').slice(0, 10);
+    if (digits.length <= 4) return digits;
+    if (digits.length <= 5) return `${digits.slice(0, 4)}-${digits.slice(4)}`;
+    return `${digits.slice(0, 4)}-${digits.slice(4, 5)}-${digits.slice(5)}`;
+}

@@ -21,7 +21,7 @@ import { useAcceptTerms } from '@/application/auth/use-accept-terms';
 import { useLogin } from '@/application/auth/use-login';
 import { Tile } from '@/presentation/components/tile';
 import { TONE } from '@/presentation/components/tone';
-import { cn } from '@/lib/utils';
+import { cn, formatStudentNumber } from '@/lib/utils';
 import { httpAuthRepository } from '@/infrastructure/auth/auth.repository.http';
 
 // Three things the login screen can show. "picker" is the default whenever
@@ -33,18 +33,6 @@ import { httpAuthRepository } from '@/infrastructure/auth/auth.repository.http';
 // it's already small.
 type LoginView = 'picker' | 'password' | 'form';
 
-// Student IDs are stored (and matched on login) in dashed form —
-// "2023-1-05413" — but typing dashes is annoying, so this reformats
-// whatever the student types/pastes into that shape as they go. It
-// works off the raw digits every time rather than patching the
-// previous string, so deleting a digit right after a dash correctly
-// collapses the dash too, instead of leaving a stray "2023-" behind.
-function formatStudentNumber(raw: string): string {
-    const digits = raw.replace(/\D/g, '').slice(0, 10);
-    if (digits.length <= 4) return digits;
-    if (digits.length <= 5) return `${digits.slice(0, 4)}-${digits.slice(4)}`;
-    return `${digits.slice(0, 4)}-${digits.slice(4, 5)}-${digits.slice(5)}`;
-}
 
 // Shown on the Sign in button itself instead of (or as well as) a toast —
 // a toast disappears on its own after a few seconds, which is misleading
