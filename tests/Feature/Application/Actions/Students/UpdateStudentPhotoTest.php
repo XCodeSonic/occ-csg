@@ -94,6 +94,7 @@ it('allows upload when the only ongoing session excludes this student', function
         'student_id' => $student->id,
         'event_id' => $session->eventDay->event_id,
         'scope' => 'event',
+        'reason' => 'Testing exclusion',
         'created_by' => $student->id,
     ]);
 

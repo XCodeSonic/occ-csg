@@ -2,6 +2,7 @@
 
 namespace App\Application\Actions\Reports;
 
+use App\Domain\Enums\AttendanceStatus;
 use App\Domain\Enums\Role;
 use App\Models\AttendancePenalty;
 use App\Models\AttendanceRecord;
@@ -236,10 +237,26 @@ final class BuildMasterRosterReport
             $record = $recordsBySession->get($sessionId, collect())->get($student->id);
             $isReversed = $reversedSessionIds->has($sessionId);
 
+            // Identical precedence to BuildEventRosterReport — the two
+            // reports render the same cell and must never disagree:
+            //
+            //  1. a stored `excluded` record wins outright, reversal
+            //     included (§6a point 3: EndSession froze it in, and it
+            //     was never a charge to forgive);
+            //  2. any other real record beats the *live* exclusion flag —
+            //     a student who genuinely scanned before being excluded
+            //     keeps that Present/Late/Absent outcome (§2 rule 4's
+            //     "mid-window guard"), it is never rewritten to
+            //     "Excluded" after the fact;
+            //  3. reversed outranks a stored Absent/Late, since the
+            //     roster is penalty-facing and the charge was undone;
+            //  4. only a student with no record at all reads from the
+            //     live exclusion flag.
             $statuses[$sessionId] = match (true) {
-                $isExcluded => 'excluded',
+                $record !== null && $record->status === AttendanceStatus::Excluded => 'excluded',
                 $record !== null && $isReversed => 'reversed',
                 $record !== null => $record->status->value,
+                $isExcluded => 'excluded',
                 default => null,
             };
         }

@@ -13,6 +13,8 @@ use App\Http\Controllers\Events\EventDayController;
 use App\Http\Controllers\Events\EventMyAttendanceController;
 use App\Http\Controllers\Events\EventRosterReportController;
 use App\Http\Controllers\Events\MyAttendanceHistoryController;
+use App\Http\Controllers\Exclusions\ExclusionBulkImportController;
+use App\Http\Controllers\Exclusions\ExclusionBulkImportPreviewController;
 use App\Http\Controllers\Exclusions\ExclusionController;
 use App\Http\Controllers\Penalties\MyPenaltyHistoryController;
 use App\Http\Controllers\Penalties\PenaltyController;
@@ -74,8 +76,23 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::post('/sessions/{session}/end', [EndSessionController::class, 'store']);
         Route::get('/sessions/{session}/report', [SessionReportController::class, 'show']);
 
+        // Manage Exclusions screen (student-exclusion-feature-plan.md
+        // §4B): every exclusion — active or removed — recorded for one
+        // event. §4A's optional "Excluded Students" step inside the
+        // event-creation wizard is not built — there is no multi-step
+        // creation wizard at all (event creation is a single form) — so
+        // this screen is currently the only place exclusions are added.
+        Route::get('/events/{event}/exclusions', [ExclusionController::class, 'index']);
         Route::post('/exclusions', [ExclusionController::class, 'store']);
         Route::delete('/exclusions/{exclusion}', [ExclusionController::class, 'destroy']);
+
+        // Bulk exclusion upload (student-exclusion-feature-plan.md
+        // §5): preview validates the CSV row-by-row and writes nothing
+        // (§7's required preview-before-commit); the second call
+        // actually creates the batch, each row going through the exact
+        // same CreateExclusion rules as a single manual add.
+        Route::post('/events/{event}/exclusions/bulk/preview', [ExclusionBulkImportPreviewController::class, 'store']);
+        Route::post('/events/{event}/exclusions/bulk', [ExclusionBulkImportController::class, 'store']);
 
         // Audit trail: who scanned each attendance record and when,
         // filterable by course/major/year level/section, scoped to one

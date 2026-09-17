@@ -17,7 +17,7 @@ class AttendanceSession extends Model
 
     protected $fillable = [
         'event_day_id', 'window_type', 'check_type', 'start_time', 'end_time',
-        'grace_minutes', 'penalty_late_amount', 'penalty_absent_amount', 'status',
+        'grace_minutes', 'penalty_late_amount', 'penalty_absent_amount', 'status', 'ended_at',
     ];
 
     protected function casts(): array
@@ -28,6 +28,12 @@ class AttendanceSession extends Model
             'status' => SessionStatus::class,
             'penalty_late_amount' => 'decimal:2',
             'penalty_absent_amount' => 'decimal:2',
+            // The precise instant EndSession closed this session — see
+            // the 2026_09_16_090000_add_ended_at_to_attendance_sessions_table
+            // migration and App\Models\Exclusion::excludedStudentIdsForSession
+            // for why this (not just `status`) is what an event-scope
+            // exclusion's forward-only cascade is evaluated against.
+            'ended_at' => 'datetime',
         ];
     }
 

@@ -113,6 +113,7 @@ it('reports an excluded student as excluded rather than absent, even after the s
         'student_id' => $excluded->id,
         'event_id' => $event->id,
         'scope' => ExclusionScope::Event,
+        'reason' => 'Testing exclusion',
         'created_by' => $event->created_by,
     ]);
 

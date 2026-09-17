@@ -31,6 +31,14 @@ final class ScanAttendance
      * double-penalize. A student who needs both a time-in and a time-out
      * check on the same window scans twice, once per session row.
      *
+     * The duplicate check runs *before* the exclusion check
+     * (student-exclusion-feature-plan.md §2 rule 4's "mid-window guard"):
+     * a student who already has a real record for this session — they
+     * scanned before CSG excluded them mid-window — must keep getting
+     * their normal Present/Late result back on a re-scan, not suddenly
+     * be told they're excluded. A brand-new scan attempt from a student
+     * with no record yet is still blocked below if they're excluded.
+     *
      * @throws \App\Domain\Exceptions\InvalidQrPayloadException
      * @throws StaleQrCodeException
      * @throws SessionNotAcceptingScansException
@@ -65,17 +73,19 @@ final class ScanAttendance
             throw new SessionNotAcceptingScansException;
         }
 
-        if (in_array($student->id, Exclusion::excludedStudentIdsForSession($session), true)) {
-            throw new StudentExcludedException;
-        }
-
         $existing = AttendanceRecord::where('session_id', $session->id)
             ->where('student_id', $student->id)
             ->first();
 
         if ($existing) {
-            // Duplicate scan: return as-is, no write.
+            // Duplicate scan: return as-is, no write, no exclusion check —
+            // this record is already real and stands regardless of any
+            // exclusion added afterward (mid-window guard).
             return $existing;
+        }
+
+        if (in_array($student->id, Exclusion::excludedStudentIdsForSession($session), true)) {
+            throw new StudentExcludedException;
         }
 
         // Plain now() — this is the same real instant Carbon::now('Asia/Manila')

@@ -18,17 +18,22 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
-function masterReportDept(string $code): Department
+// Reuses the same shape of builders as BuildMasterReportTest, redeclared
+// here with an "Api" suffix since Pest loads every test file's global
+// function declarations into one shared namespace, and PHP doesn't allow
+// declaring the same function twice (this file was previously misnamed
+// and never ran, so the collision only surfaces now that it does).
+function masterReportApiDept(string $code): Department
 {
     return Department::firstOrCreate(['code' => $code], ['name' => $code]);
 }
 
-function masterReportStaff(string $role, string $studentNumber, ?int $scAdminDepartmentId = null): Student
+function masterReportApiStaff(string $role, string $studentNumber, ?int $scAdminDepartmentId = null): Student
 {
     return Student::create([
         'student_number' => $studentNumber,
         'last_name' => 'Staff', 'first_name' => 'Test',
-        'department_id' => masterReportDept('CCS')->id,
+        'department_id' => masterReportApiDept('CCS')->id,
         'sc_admin_department_id' => $scAdminDepartmentId,
         'username' => 'mrstaff'.$studentNumber,
         'password' => 'password',
@@ -36,7 +41,7 @@ function masterReportStaff(string $role, string $studentNumber, ?int $scAdminDep
     ]);
 }
 
-function masterReportActiveSemester(int $createdBy): Semester
+function masterReportApiActiveSemester(int $createdBy): Semester
 {
     $academicYear = AcademicYear::create(['name' => '2026-2027', 'is_active' => true, 'created_by' => $createdBy]);
 
@@ -48,12 +53,12 @@ function masterReportActiveSemester(int $createdBy): Semester
     ]);
 }
 
-function masterReportEvent(int $semesterId, int $createdBy, string $name = 'Intramurals 2026'): EventModel
+function masterReportApiEvent(int $semesterId, int $createdBy, string $name = 'Intramurals 2026'): EventModel
 {
     return EventModel::create(['name' => $name, 'created_by' => $createdBy, 'semester_id' => $semesterId]);
 }
 
-function masterReportSession(EventModel $event, int $dayNumber = 1): AttendanceSession
+function masterReportApiSession(EventModel $event, int $dayNumber = 1): AttendanceSession
 {
     $day = EventDay::firstOrCreate(
         ['event_id' => $event->id, 'day_number' => $dayNumber],
@@ -70,12 +75,12 @@ function masterReportSession(EventModel $event, int $dayNumber = 1): AttendanceS
     ]);
 }
 
-function masterReportStudent(string $studentNumber, string $deptCode = 'BSIT'): Student
+function masterReportApiStudent(string $studentNumber, string $deptCode = 'BSIT'): Student
 {
     return Student::create([
         'student_number' => $studentNumber,
         'last_name' => 'Student', 'first_name' => 'Test',
-        'department_id' => masterReportDept($deptCode)->id,
+        'department_id' => masterReportApiDept($deptCode)->id,
         'year_level' => '1', 'section' => 'A',
         'username' => 'mruser'.$studentNumber,
         'password' => 'password',
@@ -87,7 +92,7 @@ it('rejects an unauthenticated master report request', function () {
 });
 
 it('rejects an officer requesting the master report', function () {
-    $officer = masterReportStaff('officer', '2020100001');
+    $officer = masterReportApiStaff('officer', '2020100001');
 
     $this->actingAs($officer, 'sanctum')
         ->getJson('/api/reports/master')
@@ -95,7 +100,7 @@ it('rejects an officer requesting the master report', function () {
 });
 
 it('returns a null semester and no events when there is no active academic year at all', function () {
-    $admin = masterReportStaff('csg_admin', '2020100002');
+    $admin = masterReportApiStaff('csg_admin', '2020100002');
 
     $this->actingAs($admin, 'sanctum')
         ->getJson('/api/reports/master')
@@ -104,7 +109,7 @@ it('returns a null semester and no events when there is no active academic year 
 });
 
 it('returns no events when the active academic year has no active semester', function () {
-    $admin = masterReportStaff('csg_admin', '2020100003');
+    $admin = masterReportApiStaff('csg_admin', '2020100003');
     $academicYear = AcademicYear::create(['name' => '2026-2027', 'is_active' => true, 'created_by' => $admin->id]);
     Semester::create([
         'academic_year_id' => $academicYear->id, 'name' => 'semester_1',
@@ -119,26 +124,27 @@ it('returns no events when the active academic year has no active semester', fun
 });
 
 it('lists only events in the active academic year + semester, with aggregated present/late/absent/excluded totals', function () {
-    $admin = masterReportStaff('csg_admin', '2020100004');
-    $semester = masterReportActiveSemester($admin->id);
+    $admin = masterReportApiStaff('csg_admin', '2020100004');
+    $semester = masterReportApiActiveSemester($admin->id);
     $inactiveSemester = Semester::create([
         'academic_year_id' => $semester->academic_year_id, 'name' => 'semester_2',
         'is_active' => false, 'created_by' => $admin->id,
     ]);
 
-    $event = masterReportEvent($semester->id, $admin->id);
-    $sessionOne = masterReportSession($event, 1);
-    $sessionTwo = masterReportSession($event, 2);
-    masterReportEvent($inactiveSemester->id, $admin->id, 'Not In Active Semester');
+    $event = masterReportApiEvent($semester->id, $admin->id);
+    $sessionOne = masterReportApiSession($event, 1);
+    $sessionTwo = masterReportApiSession($event, 2);
+    masterReportApiEvent($inactiveSemester->id, $admin->id, 'Not In Active Semester');
 
-    $present = masterReportStudent('2023100001');
-    $late = masterReportStudent('2023100002');
-    $absent = masterReportStudent('2023100003');
-    $excluded = masterReportStudent('2023100004');
+    $present = masterReportApiStudent('2023100001');
+    $late = masterReportApiStudent('2023100002');
+    $absent = masterReportApiStudent('2023100003');
+    $excluded = masterReportApiStudent('2023100004');
 
     Exclusion::create([
         'student_id' => $excluded->id, 'event_id' => $event->id,
-        'scope' => ExclusionScope::Event, 'created_by' => $admin->id,
+        'scope' => ExclusionScope::Event, 'reason' => 'Testing exclusion',
+        'created_by' => $admin->id,
     ]);
 
     foreach ([$sessionOne, $sessionTwo] as $session) {
@@ -179,15 +185,15 @@ it('lists only events in the active academic year + semester, with aggregated pr
 });
 
 it("forces an sc admin's totals to their own department, ignoring students in other departments", function () {
-    $bsit = masterReportDept('BSIT');
-    $bsba = masterReportDept('BSBA');
-    $scAdmin = masterReportStaff('sc_admin', '2020100005', $bsit->id);
-    $semester = masterReportActiveSemester($scAdmin->id);
-    $event = masterReportEvent($semester->id, $scAdmin->id);
-    $session = masterReportSession($event);
+    $bsit = masterReportApiDept('BSIT');
+    $bsba = masterReportApiDept('BSBA');
+    $scAdmin = masterReportApiStaff('sc_admin', '2020100005', $bsit->id);
+    $semester = masterReportApiActiveSemester($scAdmin->id);
+    $event = masterReportApiEvent($semester->id, $scAdmin->id);
+    $session = masterReportApiSession($event);
 
-    $bsitStudent = masterReportStudent('2023100006', 'BSIT');
-    $bsbaStudent = masterReportStudent('2023100007', 'BSBA');
+    $bsitStudent = masterReportApiStudent('2023100006', 'BSIT');
+    $bsbaStudent = masterReportApiStudent('2023100007', 'BSBA');
 
     AttendanceRecord::create([
         'session_id' => $session->id, 'student_id' => $bsitStudent->id,

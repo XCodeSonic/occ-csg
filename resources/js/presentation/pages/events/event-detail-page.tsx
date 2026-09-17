@@ -1,6 +1,6 @@
 import { type FormEvent, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { CalendarDays, CalendarPlus, FileBarChart, Lock, Radio, SearchX } from 'lucide-react';
+import { CalendarDays, CalendarPlus, FileBarChart, Lock, Radio, SearchX, UserX } from 'lucide-react';
 import { toast } from 'sonner';
 
 import {
@@ -174,12 +174,28 @@ export function EventDetailPage() {
                     </div>
                 </div>
 
-                {(REPORT_ROLES.includes(student.role) || (canManage && !isEventEnded)) && (
+                {(REPORT_ROLES.includes(student.role) || canManage) && (
                     <div className="mt-4 flex flex-wrap gap-2">
                         {REPORT_ROLES.includes(student.role) && (
                             <Button size="sm" variant="outline" className="gap-2" onClick={() => navigate(`/events/${event.id}/report`)}>
                                 <FileBarChart className="size-4" />
                                 Reports
+                            </Button>
+                        )}
+                        {canManage && (
+                            // student-exclusion-feature-plan.md §4B: "Manage Exclusions"
+                            // is reachable any time from the event detail page, for the
+                            // life of the event — not gated on isEventEnded, since the
+                            // screen still shows history (and lets CSG remove an
+                            // event-scope exclusion) even after the event itself ends.
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                className="gap-2"
+                                onClick={() => navigate(`/events/${event.id}/exclusions`)}
+                            >
+                                <UserX className="size-4" />
+                                Exclusions
                             </Button>
                         )}
                         {canManage && !isEventEnded && (

@@ -12,6 +12,7 @@ import { LoginPage } from '@/presentation/pages/auth/login-page';
 import { DashboardPage } from '@/presentation/pages/dashboard/dashboard-page';
 import { DepartmentsPage } from '@/presentation/pages/departments/departments-page';
 import { EventDetailPage } from '@/presentation/pages/events/event-detail-page';
+import { ManageExclusionsPage } from '@/presentation/pages/exclusions/manage-exclusions-page';
 import { EventsPage } from '@/presentation/pages/events/events-page';
 import { ErrorPage } from '@/presentation/pages/errors/error-page';
 import { NotFoundPage } from '@/presentation/pages/errors/not-found-page';
@@ -48,6 +49,7 @@ export const router = createBrowserRouter([
                             { path: '/events', element: <EventsPage /> },
                             { path: '/events/:eventId', element: <EventDetailPage /> },
                             { path: '/events/:eventId/report', element: <EventRosterReportPage /> },
+                            { path: '/events/:eventId/exclusions', element: <ManageExclusionsPage /> },
                             { path: '/penalties', element: <PenaltiesPage /> },
                             { path: '/reports', element: <MasterReportPage /> },
                             { path: '/students', element: <StudentsPage /> },

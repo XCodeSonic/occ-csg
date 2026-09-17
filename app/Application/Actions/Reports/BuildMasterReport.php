@@ -97,25 +97,18 @@ final class BuildMasterReport
             ->groupBy('status')
             ->pluck('total', 'status');
 
-        // Excluded students never get an attendance_records row at all
-        // (see EndSession::markMissingRecords), so they're never in the
-        // count above — tallied separately per session, the same way
-        // BuildEventRosterReport and BuildSessionReport already do.
-        //
-        // Absent is handled the same way for the same reason: a session
-        // that was ended the normal way (through EndSession) already has
-        // a real 'absent' attendance_records row for every no-show,
-        // which $statusCounts['absent'] above already picks up. But this
-        // summary is a birds-eye total across every session in the
-        // event, not a single session's own report, so it also sweeps in
-        // any roster student who still has no record at all once their
-        // session has ended — the same students EndSession would mark
-        // Absent, computed here instead of requiring every session to
-        // have actually been closed out through that action first. A
-        // still-open (scheduled/ongoing) session never contributes to
-        // this: only EndSession is allowed to decide Absent, so an
-        // unscanned student in an open session stays uncounted (pending)
-        // rather than guessed at.
+        // A session ended the normal way (through EndSession) already
+        // has a real attendance_records row — present, late, absent, or
+        // a permanently-persisted excluded row (see
+        // EndSession::markMissingRecords) — for every roster student, so
+        // $statusCounts above already reflects it correctly and
+        // permanently, even if the exclusion behind an 'excluded' row is
+        // later removed. This sweep only needs to independently account
+        // for students with no record *at all* yet: an unscanned student
+        // in a still-open session (stays "pending", not tallied here),
+        // or — for a session marked ended without ever having gone
+        // through EndSession — the students that action would have
+        // written a row for.
         $recordedStudentIdsBySession = DB::table('attendance_records')
             ->whereIn('session_id', $sessionIds)
             ->whereIn('student_id', $rosterIds)
@@ -124,17 +117,26 @@ final class BuildMasterReport
             ->groupBy('session_id')
             ->map(fn (Collection $rows) => $rows->pluck('student_id'));
 
-        $excludedTotal = 0;
+        // Seeded from the persisted counts above so a student already
+        // holding a real 'excluded' row is never double-counted by the
+        // live sweep below.
+        $excludedTotal = (int) ($statusCounts['excluded'] ?? 0);
         $unrecordedAbsentTotal = 0;
 
         foreach ($sessions as $session) {
+            $recordedIds = $recordedStudentIdsBySession->get($session->id, collect());
+
+            // A student can be both "currently excluded" and already
+            // holding a real record for this session — the mid-window
+            // guard case (student-exclusion-feature-plan.md §2 rule 4):
+            // they scanned before being excluded, so that real
+            // Present/Late outcome already landed in $statusCounts above
+            // and must not also be tallied here as Excluded.
             $excludedIds = Exclusion::excludedStudentIdsForSession($session);
-            $sessionExcludedIds = $rosterIds->intersect($excludedIds);
+            $sessionExcludedIds = $rosterIds->intersect($excludedIds)->diff($recordedIds);
             $excludedTotal += $sessionExcludedIds->count();
 
             if ($session->status === SessionStatus::Ended) {
-                $recordedIds = $recordedStudentIdsBySession->get($session->id, collect());
-
                 $unrecordedAbsentTotal += $rosterIds
                     ->diff($sessionExcludedIds)
                     ->diff($recordedIds)

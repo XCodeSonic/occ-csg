@@ -170,6 +170,7 @@ it('shows an event-wide excluded student as excluded rather than absent after th
         'student_id' => $student->id,
         'event_id' => $event->id,
         'scope' => ExclusionScope::Event,
+        'reason' => 'Testing exclusion',
         'created_by' => $event->created_by,
     ]);
 
@@ -251,25 +252,65 @@ it('leaves an excluded session reading excluded even when a penalty for it was r
     $session = rosterSession($event);
     $student = rosterStudent('2023000022');
 
-    (new EndSession)($session);
-
-    $penalty = AttendancePenalty::where('student_id', $student->id)
-        ->where('session_id', $session->id)
-        ->firstOrFail();
-    (new ReversePenalty)($penalty, 'Reversed', rosterAdmin());
-
-    // Exclusion is recorded after the fact and still outranks Reversed:
-    // "was never expected to attend" is a stronger statement than "was
-    // charged and then forgiven".
+    // The exclusion has to exist *before* the session closes: per
+    // student-exclusion-feature-plan.md §6a, an event-scope exclusion is
+    // never retroactive, so one added afterwards would not cover this
+    // session at all. EndSession freezes the outcome in as a permanent
+    // `excluded` AttendanceRecord and charges nothing for it.
     Exclusion::create([
         'student_id' => $student->id,
         'event_id' => $event->id,
         'scope' => ExclusionScope::Event,
+        'reason' => 'Testing exclusion',
+        'created_by' => $event->created_by,
+    ]);
+
+    (new EndSession)($session);
+
+    expect(AttendancePenalty::where('student_id', $student->id)->where('session_id', $session->id)->exists())
+        ->toBeFalse();
+
+    // A stray penalty on the same session — attendance_penalties has no
+    // unique (student_id, session_id) key, so a mistaken manual charge is
+    // reachable — which is then reversed. The reversal must not relabel
+    // the cell "Reversed": "was never expected to attend" is a different
+    // statement from "was charged and then forgiven", and the frozen
+    // record is the one the plan says survives.
+    $penalty = AttendancePenalty::create([
+        'student_id' => $student->id,
+        'session_id' => $session->id,
+        'amount' => 25,
+        'reason' => 'Absent - Time In (charged in error)',
+    ]);
+    (new ReversePenalty)($penalty, 'Student was excluded, charged in error', rosterAdmin());
+
+    expect((new BuildEventRosterReport)($event)['groups'][0]['students'][0]['sessions'][$session->id])
+        ->toBe('excluded');
+});
+
+it('does not let an event-scope exclusion added after a session ended rewrite its history', function () {
+    $event = rosterEvent();
+    $session = rosterSession($event);
+    $student = rosterStudent('2023000024');
+
+    (new EndSession)($session);
+
+    // Unambiguously later than the session's ended_at, so this is not
+    // resting on same-instant timestamp comparison.
+    Carbon::setTestNow(Carbon::parse('2026-11-10 09:00:00', 'Asia/Manila'));
+
+    // §2 rule 1 / §6a: the session had already ended when this was
+    // created, so it is outside the cascade entirely — Absent stands.
+    Exclusion::create([
+        'student_id' => $student->id,
+        'event_id' => $event->id,
+        'scope' => ExclusionScope::Event,
+        'reason' => 'Testing exclusion',
         'created_by' => $event->created_by,
     ]);
 
     expect((new BuildEventRosterReport)($event)['groups'][0]['students'][0]['sessions'][$session->id])
-        ->toBe('excluded');
+        ->toBe('absent');
 });
 
 it('does not read as reversed while a live penalty for the same session survives', function () {

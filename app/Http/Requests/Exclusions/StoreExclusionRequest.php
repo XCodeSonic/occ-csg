@@ -15,6 +15,15 @@ class StoreExclusionRequest extends FormRequest
         return $this->user()?->can('create', Exclusion::class) ?? false;
     }
 
+    /**
+     * student-exclusion-feature-plan.md §3/§5: scope is event|day|window.
+     * event_day_id is required for both day and window scope (window is
+     * one specific day+window_type — see App\Domain\Enums\ExclusionScope);
+     * window_type is required only for window scope. reason is always
+     * required (§2 rule 5 / §5 step 3), and is validated here — not left
+     * to CreateExclusion — so a missing reason surfaces as a normal 422
+     * rather than a DB-level NOT NULL failure.
+     */
     public function rules(): array
     {
         return [
@@ -23,8 +32,12 @@ class StoreExclusionRequest extends FormRequest
 
             'event_id' => ['required', 'integer', 'exists:events,id'],
             'scope' => ['required', Rule::enum(ExclusionScope::class)],
-            'window_type' => ['required_if:scope,window_type', 'nullable', Rule::enum(WindowType::class)],
-            'session_id' => ['required_if:scope,session', 'nullable', 'integer', 'exists:attendance_sessions,id'],
+            'event_day_id' => [
+                Rule::requiredIf(fn () => in_array($this->input('scope'), ['day', 'window'], true)),
+                'nullable', 'integer', 'exists:event_days,id',
+            ],
+            'window_type' => ['required_if:scope,window', 'nullable', Rule::enum(WindowType::class)],
+            'reason' => ['required', 'string', 'max:2000'],
         ];
     }
 }

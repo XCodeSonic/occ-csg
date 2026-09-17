@@ -1,11 +1,39 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { BrowserQRCodeReader } from '@zxing/browser';
 import type { IScannerControls } from '@zxing/browser';
-import { AlertTriangle, CheckCircle2, ChevronRight, Clock, Loader2, Moon, ScanLine, Sun, Sunrise, X, XCircle, type LucideIcon } from 'lucide-react';
+import {
+    AlertTriangle,
+    CheckCircle2,
+    ChevronRight,
+    Clock,
+    Loader2,
+    Moon,
+    ScanLine,
+    Sun,
+    Sunrise,
+    Undo2,
+    X,
+    XCircle,
+    type LucideIcon,
+} from 'lucide-react';
+import { toast } from 'sonner';
 
-import { Button } from '@/components/ui/button';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { useRecentScans } from '@/application/sessions/use-recent-scans';
+import { useReverseScan } from '@/application/sessions/use-reverse-scan';
 import { useScanAttendance } from '@/application/sessions/use-scan-attendance';
 import { useScannableSessions, type ScannableSession } from '@/application/sessions/use-scannable-sessions';
 import { AttendanceStatus, CHECK_TYPE_LABEL, ScanOutcome } from '@/domain/enums';
@@ -15,6 +43,21 @@ import { UserAvatar } from '@/presentation/components/user-avatar';
 import { Tile } from '@/presentation/components/tile';
 import { TONE, type Tone } from '@/presentation/components/tone';
 import { cn } from '@/lib/utils';
+
+/**
+ * One-tap reasons for the reversal dialog. The officer at the gate has a
+ * queue in front of them — typing a reason for every reversal isn't
+ * realistic — so these cover the common case (a QR presented by someone
+ * other than its owner) plus the next couple of most likely ones. Picking
+ * a preset just fills the text field below; the officer can still edit or
+ * replace it, and leaving it untouched sends no reason at all, which the
+ * server fills in with ReverseAttendanceRecord::DEFAULT_REASON.
+ */
+const REVERSAL_REASON_PRESETS = [
+    "Photo didn't match the person",
+    'QR belongs to someone else',
+    'Accidental scan',
+] as const;
 
 // The double-scan guard: how long a given decoded QR string is ignored
 // after being accepted. Continuous scanning re-decodes the same frame
@@ -26,36 +69,6 @@ const TOKEN_COOLDOWN_MS = 3000;
 // taps its close button or the next badge is scanned — no auto-hide
 // timer, so there's no risk of it disappearing before they've had a
 // chance to read it.
-
-// How many entries the "Recent scans" list keeps, and the localStorage
-// key they're cached under so a refresh doesn't wipe the list.
-const RECENT_SCANS_LIMIT = 8;
-
-function recentScansStorageKey(sessionId: number): string {
-    return `occ-csg:scan:${sessionId}:recent`;
-}
-
-function loadStoredRecent(sessionId: number): ScanResult[] {
-    if (typeof window === 'undefined') return [];
-    try {
-        const raw = window.localStorage.getItem(recentScansStorageKey(sessionId));
-        if (!raw) return [];
-        const parsed = JSON.parse(raw);
-        return Array.isArray(parsed) ? (parsed as ScanResult[]) : [];
-    } catch {
-        return [];
-    }
-}
-
-function storeRecent(sessionId: number, recent: ScanResult[]): void {
-    if (typeof window === 'undefined') return;
-    try {
-        window.localStorage.setItem(recentScansStorageKey(sessionId), JSON.stringify(recent));
-    } catch {
-        // Storage full or unavailable (private browsing, quota) — the list
-        // just won't survive a refresh; scanning itself is unaffected.
-    }
-}
 
 const WINDOW_LABEL: Record<string, string> = {
     morning: 'Morning',
@@ -202,7 +215,6 @@ function Scanner({
     const cooldownRef = useRef<Map<string, number>>(new Map());
 
     const [feedback, setFeedback] = useState<Feedback | null>(null);
-    const [recent, setRecent] = useState<ScanResult[]>(() => loadStoredRecent(session.id));
     const [cameraError, setCameraError] = useState<string | null>(null);
     // Mirrors isProcessingRef into render state purely so the UI can show a
     // "Processing…" status. The ref is what the decode loop actually reads
@@ -210,25 +222,17 @@ function Scanner({
     // was set up once at mount) — this state is just for display.
     const [isProcessing, setIsProcessing] = useState(false);
 
-    const showFeedback = useCallback(
-        (next: Feedback) => {
-            const tone = next.kind === 'success' ? resultTone(next.result) : 'bad';
-            setFeedback(next);
-            playFeedbackTone(tone);
-            vibrateForTone(tone);
-
-            // Stays on screen until dismissFeedback runs (manual close, or
-            // the next successful/failed scan replacing it) — no timer.
-            if (next.kind === 'success') {
-                setRecent((prev) => {
-                    const updated = [next.result, ...prev].slice(0, RECENT_SCANS_LIMIT);
-                    storeRecent(session.id, updated);
-                    return updated;
-                });
-            }
-        },
-        [session.id],
-    );
+    // Stays on screen until dismissFeedback runs (manual close, or the next
+    // successful/failed scan replacing it) — no timer. Genuinely stable
+    // now: the "Recent scans" strip is populated from the server (see
+    // RecentScansPanel), refreshed by useScanAttendance's own invalidation,
+    // so this callback has nothing left to persist itself.
+    const showFeedback = useCallback((next: Feedback) => {
+        const tone = next.kind === 'success' ? resultTone(next.result) : 'bad';
+        setFeedback(next);
+        playFeedbackTone(tone);
+        vibrateForTone(tone);
+    }, []);
 
     const dismissFeedback = useCallback(() => setFeedback(null), []);
 
@@ -441,34 +445,142 @@ function Scanner({
                     : "Hold each student's QR code steady in the frame, then confirm the photo matches their face."}
             </Text>
 
-            {recent.length > 0 && (
-                <div className="space-y-2">
-                    <Text variant="small" className="font-medium">
-                        Recent scans
-                    </Text>
-                    <div className="space-y-2">
-                        {recent.map((entry) => (
-                            <div
-                                key={`${entry.recordId}-${entry.outcome}-${entry.scannedAt}`}
-                                className="flex items-center gap-4 rounded-2xl border bg-card p-2"
-                            >
-                                <UserAvatar student={entry.student} className="size-9" />
-                                <div className="min-w-0 flex-1">
-                                    <Text className="truncate text-sm font-medium">{studentFullName(entry.student)}</Text>
-                                    <Text variant="caption">{studentMeta(entry.student)}</Text>
-                                </div>
-                                <div className="flex flex-col items-end gap-2">
-                                    <OutcomeBadge result={entry} checkType={session.checkType} />
-                                    {formatScanTime(entry.scannedAt) && (
-                                        <Text variant="caption">{formatScanTime(entry.scannedAt)}</Text>
-                                    )}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
+            <RecentScansPanel sessionId={session.id} checkType={session.checkType} />
         </div>
+    );
+}
+
+/**
+ * The "Recent scans" strip plus the officer's escape hatch for a mis-scan:
+ * tap the undo icon on a row, confirm, and the record goes back to pending
+ * server-side (see ReverseAttendanceRecord). Deliberately reads from
+ * useRecentScans (server) rather than anything local, since the whole
+ * point is showing what the *server* currently has for this session —
+ * including rows another officer's phone already reversed.
+ */
+function RecentScansPanel({ sessionId, checkType }: { sessionId: number; checkType: string }) {
+    const { data: recent = [] } = useRecentScans(sessionId);
+    const reverseScan = useReverseScan(sessionId);
+
+    const [revertTarget, setRevertTarget] = useState<ScanResult | null>(null);
+    const [revertReason, setRevertReason] = useState('');
+
+    const closeDialog = useCallback(() => {
+        setRevertTarget(null);
+        setRevertReason('');
+    }, []);
+
+    const confirmRevert = useCallback(() => {
+        if (!revertTarget) return;
+        const target = revertTarget;
+        const reason = revertReason.trim();
+
+        reverseScan.mutate(
+            { recordId: target.recordId, reason: reason !== '' ? reason : undefined },
+            {
+                onSuccess: () => {
+                    toast.success(`${studentFullName(target.student)} reversed — back to pending.`);
+                },
+                onError: (error) => {
+                    toast.error(error instanceof ScanError ? error.message : 'Could not reverse this scan.');
+                },
+            },
+        );
+        closeDialog();
+    }, [revertTarget, revertReason, reverseScan, closeDialog]);
+
+    if (recent.length === 0) return null;
+
+    return (
+        <>
+            <div className="space-y-2">
+                <Text variant="small" className="font-medium">
+                    Recent scans
+                </Text>
+                <div className="space-y-2">
+                    {recent.map((entry) => (
+                        <div
+                            key={entry.recordId}
+                            className="flex items-center gap-3 rounded-2xl border bg-card p-2"
+                        >
+                            <UserAvatar student={entry.student} className="size-9" />
+                            <div className="min-w-0 flex-1">
+                                <Text className="truncate text-sm font-medium">{studentFullName(entry.student)}</Text>
+                                <Text variant="caption">{studentMeta(entry.student)}</Text>
+                            </div>
+                            <div className="flex flex-col items-end gap-2">
+                                <OutcomeBadge result={entry} checkType={checkType} />
+                                {formatScanTime(entry.scannedAt) && (
+                                    <Text variant="caption">{formatScanTime(entry.scannedAt)}</Text>
+                                )}
+                            </div>
+                            {/* The officer's undo: the wrong face on the
+                                photo, a badge scanned by mistake, and so
+                                on. Same tier of permission as scanning
+                                itself (see AttendanceSessionPolicy::
+                                reverseScan) — no admin has to be flagged
+                                down for this. */}
+                            <button
+                                type="button"
+                                onClick={() => setRevertTarget(entry)}
+                                aria-label={`Reverse scan for ${studentFullName(entry.student)}`}
+                                className="shrink-0 rounded-xl p-2 text-muted-foreground transition-colors hover:bg-red-500/10 hover:text-red-600"
+                            >
+                                <Undo2 className="size-4" />
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            <AlertDialog open={revertTarget !== null} onOpenChange={(open) => !open && closeDialog()}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Reverse this scan?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {revertTarget &&
+                                `${studentFullName(revertTarget.student)} will go back to pending and can be scanned again — use this when the photo didn't match the person who presented the QR code.`}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+
+                    <div className="space-y-2">
+                        <Text variant="small" className="font-medium">
+                            Reason (optional)
+                        </Text>
+                        <div className="flex flex-wrap gap-2">
+                            {REVERSAL_REASON_PRESETS.map((preset) => (
+                                <button
+                                    key={preset}
+                                    type="button"
+                                    onClick={() => setRevertReason(preset)}
+                                    className={cn(
+                                        'rounded-full border px-3 py-1.5 text-caption font-medium transition-colors',
+                                        revertReason === preset
+                                            ? 'border-red-500 bg-red-500/10 text-red-700'
+                                            : 'border-border text-muted-foreground hover:bg-muted',
+                                    )}
+                                >
+                                    {preset}
+                                </button>
+                            ))}
+                        </div>
+                        <Input
+                            value={revertReason}
+                            onChange={(event) => setRevertReason(event.target.value)}
+                            placeholder="Leave blank to use the default reason"
+                            maxLength={500}
+                        />
+                    </div>
+
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={confirmRevert} className={buttonVariants({ variant: 'destructive' })}>
+                            Yes, reverse
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </>
     );
 }
 

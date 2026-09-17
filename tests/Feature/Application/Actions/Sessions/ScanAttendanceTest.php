@@ -166,13 +166,14 @@ it('rejects a scan from a student excluded from the whole event', function () {
         'student_id' => $student->id,
         'event_id' => $session->eventDay->event_id,
         'scope' => ExclusionScope::Event,
+        'reason' => 'Testing exclusion',
         'created_by' => $student->id,
     ]);
 
     (new ScanAttendance)($session, $token);
 })->throws(StudentExcludedException::class);
 
-it('rejects a scan from a student excluded from this specific session', function () {
+it('rejects a scan from a student excluded from this specific day+window', function () {
     $session = makeSession();
     $student = makeStudent();
     $token = QrPayload::forStudent($student->student_number, $student->qr_version)->encrypt();
@@ -180,15 +181,17 @@ it('rejects a scan from a student excluded from this specific session', function
     Exclusion::create([
         'student_id' => $student->id,
         'event_id' => $session->eventDay->event_id,
-        'scope' => ExclusionScope::Session,
-        'session_id' => $session->id,
+        'scope' => ExclusionScope::Window,
+        'event_day_id' => $session->event_day_id,
+        'window_type' => $session->window_type,
+        'reason' => 'Testing exclusion',
         'created_by' => $student->id,
     ]);
 
     (new ScanAttendance)($session, $token);
 })->throws(StudentExcludedException::class);
 
-it('still allows a scan from a student excluded from a different window type', function () {
+it('still allows a scan from a student excluded from a different window on the same day', function () {
     $session = makeSession(); // Morning
     $student = makeStudent();
     $token = QrPayload::forStudent($student->student_number, $student->qr_version)->encrypt();
@@ -196,8 +199,10 @@ it('still allows a scan from a student excluded from a different window type', f
     Exclusion::create([
         'student_id' => $student->id,
         'event_id' => $session->eventDay->event_id,
-        'scope' => ExclusionScope::WindowType,
+        'scope' => ExclusionScope::Window,
+        'event_day_id' => $session->event_day_id,
         'window_type' => WindowType::Evening,
+        'reason' => 'Testing exclusion',
         'created_by' => $student->id,
     ]);
 

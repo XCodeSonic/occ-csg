@@ -157,6 +157,7 @@ it('reports excluded rather than pending', function () {
         'student_id' => $student->id,
         'event_id' => $event->id,
         'scope' => 'event',
+        'reason' => 'Testing exclusion',
         'created_by' => $admin->id,
     ]);
 

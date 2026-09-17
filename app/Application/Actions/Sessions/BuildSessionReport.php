@@ -62,9 +62,14 @@ final class BuildSessionReport
             $isExcluded = in_array($student->id, $excludedStudentIds, true);
             $record = $records->get($student->id);
 
+            // A real record always wins over the exclusion flag: it can
+            // only exist here because the student genuinely scanned
+            // before being excluded (student-exclusion-feature-plan.md
+            // §2 rule 4's "mid-window guard") — that Present/Late/Absent
+            // outcome is not rewritten to "Excluded" after the fact.
             [$status, $scannedAt] = match (true) {
-                $isExcluded => ['excluded', null],
                 $record !== null => [$record->status->value, $record->scanned_at],
+                $isExcluded => ['excluded', null],
                 default => [null, null], // not yet scanned, session still open
             };
 

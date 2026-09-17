@@ -34,11 +34,27 @@ final class EndSession
      * lands in one atomic transaction instead of being split between
      * the scan endpoint and this action.
      *
-     * Excluded students are skipped entirely — no record is created for
-     * them here and no penalty is charged. (They may already have a
-     * real scan on file if they scanned before being excluded, or if
-     * the scanner doesn't yet check exclusions — this action does not
-     * retroactively touch any existing record, excluded or not.)
+     * Excluded students with no existing record get a permanent
+     * `excluded` AttendanceRecord written here (see markMissingRecords)
+     * instead of an Absent one, and no penalty is charged for it. This
+     * is written as a real row — not left to be derived live from the
+     * exclusions table at report time — specifically so an already-
+     * ended session's outcome can never change again: per
+     * student-exclusion-feature-plan.md §6a point 3, once a day/window
+     * has ended, its "Excluded" reads must survive even if the
+     * exclusion behind it is later removed (removal only clears
+     * *future* sessions from being covered — see
+     * App\Application\Actions\Exclusions\RemoveExclusion and
+     * App\Models\Exclusion::excludedStudentIdsForSession, which only
+     * ever matches *active* rows and would otherwise silently "forget"
+     * this session the moment the exclusion's status flips to removed).
+     *
+     * A student who has a *real* record already (they scanned before
+     * being excluded — §2 rule 4's "mid-window guard") keeps that
+     * record and its penalty exactly as if they'd never been excluded:
+     * an exclusion never rewrites or un-charges something that already
+     * genuinely happened, it only ever prevents new Absent/penalty
+     * writes going forward.
      *
      * @return array{session_id: int, present: int, late: int, absent_created: int, penalty_total: float}
      *
@@ -62,9 +78,9 @@ final class EndSession
             $now = Carbon::now();
 
             $absentCreated = $this->markMissingRecords($locked, $excludedStudentIds, $now);
-            $summary = $this->applyPenalties($locked, $excludedStudentIds);
+            $summary = $this->applyPenalties($locked);
 
-            $locked->update(['status' => SessionStatus::Ended]);
+            $locked->update(['status' => SessionStatus::Ended, 'ended_at' => $now]);
 
             return array_merge($summary, [
                 'session_id' => $locked->id,
@@ -74,8 +90,12 @@ final class EndSession
     }
 
     /**
-     * Every student with zero attendance_records row for this session is
-     * absent for the single check this session covers.
+     * Every student with zero attendance_records row for this session
+     * gets one written here: Absent for the single check this session
+     * covers, or — for a student currently excluded from it — a
+     * permanent `excluded` row instead (see the class docblock for why
+     * this is written as a real row rather than left to be derived live
+     * from the exclusions table).
      */
     private function markMissingRecords(AttendanceSession $session, array $excludedStudentIds, Carbon $now): int
     {
@@ -97,22 +117,30 @@ final class EndSession
         $missingStudentIds = Student::where('role', Role::Student)
             ->whereIn('department_id', $includedDepartmentIds)
             ->whereNotIn('id', $studentIdsWithRecord)
-            ->whereNotIn('id', $excludedStudentIds)
             ->pluck('id');
 
+        $absentCreated = 0;
+
         foreach ($missingStudentIds->chunk(500) as $chunk) {
-            AttendanceRecord::insert($chunk->map(fn (int $studentId) => [
-                'session_id' => $session->id,
-                'student_id' => $studentId,
-                'scanned_at' => null,
-                'status' => AttendanceStatus::Absent->value,
-                'scanned_by' => null,
-                'created_at' => $now,
-                'updated_at' => $now,
-            ])->all());
+            $rows = $chunk->map(function (int $studentId) use ($session, $excludedStudentIds, $now, &$absentCreated) {
+                $isExcluded = in_array($studentId, $excludedStudentIds, true);
+                $absentCreated += $isExcluded ? 0 : 1;
+
+                return [
+                    'session_id' => $session->id,
+                    'student_id' => $studentId,
+                    'scanned_at' => null,
+                    'status' => ($isExcluded ? AttendanceStatus::Excluded : AttendanceStatus::Absent)->value,
+                    'scanned_by' => null,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+            })->all();
+
+            AttendanceRecord::insert($rows);
         }
 
-        return $missingStudentIds->count();
+        return $absentCreated;
     }
 
     private function excludedStudentIds(AttendanceSession $session): array
@@ -121,15 +149,23 @@ final class EndSession
     }
 
     /**
+     * Runs over every attendance_records row for this session, including
+     * the `excluded` rows markMissingRecords() just wrote — but
+     * penalizeIfNeeded() below only ever charges Late/Absent, so an
+     * excluded row (and a Present one) contributes 0 here regardless. A
+     * student who reaches this method with a real Present/Late/Absent
+     * status despite currently being excluded only got there via a
+     * genuine pre-exclusion scan (the mid-window guard case) and is
+     * penalized exactly as if they'd never been excluded.
+     *
      * @return array{present: int, late: int, penalty_total: float}
      */
-    private function applyPenalties(AttendanceSession $session, array $excludedStudentIds): array
+    private function applyPenalties(AttendanceSession $session): array
     {
         $counts = ['present' => 0, 'late' => 0, 'penalty_total' => 0.0];
         $checkLabel = $session->check_type === CheckType::TimeOut ? 'Time Out' : 'Time In';
 
         AttendanceRecord::where('session_id', $session->id)
-            ->whereNotIn('student_id', $excludedStudentIds)
             ->chunkById(500, function ($records) use ($session, $checkLabel, &$counts) {
                 foreach ($records as $record) {
                     $counts['present'] += (int) ($record->status === AttendanceStatus::Present);

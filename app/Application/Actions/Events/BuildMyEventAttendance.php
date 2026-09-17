@@ -86,9 +86,20 @@ final class BuildMyEventAttendance
                             'start_time' => $session->start_time,
                             'end_time' => $session->end_time,
                             'session_status' => $session->status->value,
-                            'attendance_status' => $isExcluded
-                                ? AttendanceStatus::Excluded->value
-                                : $record?->status->value,
+                            // A real record wins over the live exclusion
+                            // flag (student-exclusion-feature-plan.md §2
+                            // rule 4's "mid-window guard"): a student who
+                            // genuinely scanned before CSG excluded them
+                            // keeps that Present/Late outcome, and an
+                            // already-ended session reads from the
+                            // permanent row EndSession froze in — which
+                            // is itself `excluded` where it should be.
+                            // Only a student with no record at all falls
+                            // back to the live flag, which is what turns
+                            // a still-open session from "pending" into
+                            // "Excluded".
+                            'attendance_status' => $record?->status->value
+                                ?? ($isExcluded ? AttendanceStatus::Excluded->value : null),
                             'scanned_at' => $record?->scanned_at?->toIso8601String(),
                             // "Who scanned me" — no scan exists for an
                             // Absent/Excluded/pending row, so this stays

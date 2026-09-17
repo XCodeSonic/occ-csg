@@ -136,7 +136,7 @@ it('ends the time-out sibling session independently, absent for the missed check
         ->and((float) $result['penalty_total'])->toBe(25.0); // absent penalty for the missed time-out
 });
 
-it('does not create records or charge penalties for excluded students', function () {
+it('writes a permanent excluded record (not absent) and charges no penalty for excluded students', function () {
     $session = endSessionSession();
     $event = $session->eventDay->event;
     $excludedStudent = endSessionStudent('2023000003');
@@ -145,15 +145,49 @@ it('does not create records or charge penalties for excluded students', function
         'student_id' => $excludedStudent->id,
         'event_id' => $event->id,
         'scope' => ExclusionScope::Event,
+        'reason' => 'Testing exclusion',
         'created_by' => $event->created_by,
     ]);
 
     $result = (new EndSession)($session);
 
-    expect(AttendanceRecord::where('session_id', $session->id)->where('student_id', $excludedStudent->id)->exists())
-        ->toBeFalse()
+    // A real `excluded` row is written here (not skipped) so this
+    // session's outcome for this student is locked in permanently —
+    // see EndSession::markMissingRecords: if the exclusion is later
+    // removed, a live lookup would otherwise "forget" this session ever
+    // excluded them, silently rewriting already-closed history.
+    $record = AttendanceRecord::where('session_id', $session->id)->where('student_id', $excludedStudent->id)->first();
+
+    expect($record)->not->toBeNull()
+        ->and($record->status)->toBe(AttendanceStatus::Excluded)
+        ->and($record->scanned_at)->toBeNull()
         ->and(AttendancePenalty::where('student_id', $excludedStudent->id)->exists())->toBeFalse()
-        ->and($result['absent_created'])->toBe(0);
+        ->and($result['absent_created'])->toBe(0); // excluded, not counted as absent
+});
+
+it('keeps an excluded student\'s session reading Excluded even after the exclusion is later removed', function () {
+    $session = endSessionSession();
+    $event = $session->eventDay->event;
+    $excludedStudent = endSessionStudent('2023000004');
+
+    $exclusion = Exclusion::create([
+        'student_id' => $excludedStudent->id,
+        'event_id' => $event->id,
+        'scope' => ExclusionScope::Event,
+        'reason' => 'Testing exclusion',
+        'created_by' => $event->created_by,
+    ]);
+
+    (new EndSession)($session);
+
+    // Removing the exclusion afterward (soft: status flips to removed,
+    // never deleted — see RemoveExclusion) must not retroactively change
+    // what already happened to this already-ended session.
+    $exclusion->update(['status' => 'removed']);
+
+    $record = AttendanceRecord::where('session_id', $session->id)->where('student_id', $excludedStudent->id)->first();
+
+    expect($record->status)->toBe(AttendanceStatus::Excluded);
 });
 
 it('charges the late penalty for a student who scanned late', function () {

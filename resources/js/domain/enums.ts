@@ -62,12 +62,30 @@ export const ScanOutcome = {
 } as const;
 export type ScanOutcome = (typeof ScanOutcome)[keyof typeof ScanOutcome];
 
+/**
+ * student-exclusion-feature-plan.md §3: Event excludes the whole event
+ * (cascading forward to every not-yet-ended day/window — never
+ * retroactive); Day excludes one specific day, all its windows; Window
+ * excludes one specific day+window only. Mirrors backend
+ * App\Domain\Enums\ExclusionScope.
+ */
 export const ExclusionScope = {
     Event: 'event',
-    WindowType: 'window_type',
-    Session: 'session',
+    Day: 'day',
+    Window: 'window',
 } as const;
 export type ExclusionScope = (typeof ExclusionScope)[keyof typeof ExclusionScope];
+
+/**
+ * Removing an exclusion is a soft state change, never a delete
+ * (student-exclusion-feature-plan.md §6) — history survives. Mirrors
+ * backend App\Domain\Enums\ExclusionStatus.
+ */
+export const ExclusionStatus = {
+    Active: 'active',
+    Removed: 'removed',
+} as const;
+export type ExclusionStatus = (typeof ExclusionStatus)[keyof typeof ExclusionStatus];
 
 /** A term within an AcademicYear — every academic year has exactly these three. */
 export const Semester = {
@@ -155,6 +173,19 @@ export const ATTENDANCE_STATUS_BADGE_CLASS: Record<AttendanceStatus, string> = {
     [AttendanceStatus.Absent]: 'border-transparent bg-red-100 text-red-800 dark:bg-red-500/15 dark:text-red-300',
     [AttendanceStatus.Excluded]: 'border-transparent bg-muted text-muted-foreground',
     [AttendanceStatus.Pending]: 'border-transparent bg-muted text-muted-foreground',
+};
+
+/** ExclusionScope → label shown in the UI (Manage Exclusions screen, Add flow). */
+export const EXCLUSION_SCOPE_LABEL: Record<ExclusionScope, string> = {
+    [ExclusionScope.Event]: 'Whole Event',
+    [ExclusionScope.Day]: 'Specific Day',
+    [ExclusionScope.Window]: 'Specific Window',
+};
+
+/** ExclusionStatus → label shown in the UI (Manage Exclusions screen). */
+export const EXCLUSION_STATUS_LABEL: Record<ExclusionStatus, string> = {
+    [ExclusionStatus.Active]: 'Active',
+    [ExclusionStatus.Removed]: 'Removed',
 };
 
 /*

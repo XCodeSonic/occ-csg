@@ -1,4 +1,4 @@
-import type { AttendanceStatus, CheckType, EventStatus, ExclusionScope, Role, SessionStatus, WindowType } from '@/domain/enums';
+import type { AttendanceStatus, CheckType, EventStatus, ExclusionScope, ExclusionStatus, Role, SessionStatus, WindowType } from '@/domain/enums';
 
 export interface Department {
     id: number;
@@ -154,8 +154,14 @@ export interface Exclusion {
     studentId: number;
     eventId: number;
     scope: ExclusionScope;
-    windowTypeOrSessionId: string | number | null;
+    eventDayId: number | null;
+    windowType: WindowType | null;
+    reason: string;
+    status: ExclusionStatus;
+    batchId: string | null;
     createdBy: number;
+    removedBy: number | null;
+    removedAt: string | null;
 }
 
 export interface AuthenticatedUser {

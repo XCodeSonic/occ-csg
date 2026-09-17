@@ -2,6 +2,7 @@
 
 namespace App\Application\Actions\Reports;
 
+use App\Domain\Enums\AttendanceStatus;
 use App\Domain\Enums\Role;
 use App\Models\AttendancePenalty;
 use App\Models\AttendanceRecord;
@@ -242,13 +243,29 @@ final class BuildEventRosterReport
             $record = $recordsBySession->get($session->id, collect())->get($student->id);
 
             $statuses[$session->id] = match (true) {
-                // Spec §8: excluded reads as "Excluded", never "Absent".
-                $isExcluded => 'excluded',
+                // A stored `excluded` record outranks everything,
+                // reversal included. EndSession froze that row in when
+                // the session closed (student-exclusion-feature-plan.md
+                // §6a point 3) and the student was never charged for it,
+                // so a reversed penalty sitting on the same session says
+                // nothing about this cell — relabelling it "Reversed"
+                // would claim the student was charged and forgiven, when
+                // the plan's record is that they were never expected to
+                // attend at all.
+                $record !== null && $record->status === AttendanceStatus::Excluded => 'excluded',
+                // Otherwise a real record still wins over the live
+                // exclusion flag below: it can only exist here because
+                // the student genuinely scanned before being excluded
+                // (§2 rule 4's "mid-window guard") — that outcome is
+                // never rewritten to "Excluded" after the fact.
+                //
                 // Reversed outranks the stored Absent/Late: the record is
                 // still historically accurate, but the roster is a
                 // penalty-facing document and the charge was undone.
                 $record !== null && $reversedSessionIds->has($session->id) => 'reversed',
                 $record !== null => $record->status->value,
+                // Spec §8: excluded reads as "Excluded", never "Absent".
+                $isExcluded => 'excluded',
                 // Not yet scanned and the session may still be open — only
                 // EndSession is allowed to decide Absent, so this stays
                 // null (rendered as "Pending") rather than guessed at.
