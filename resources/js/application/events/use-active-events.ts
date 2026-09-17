@@ -11,8 +11,10 @@ import { httpEventsRepository } from '@/infrastructure/events/events.repository.
  * than one event being open at once — two overlapping intramurals, or one
  * CSG Admin simply forgetting to end last week's event before starting a
  * new one — so anything that needs to show *all* of a student's currently
- * open events (like the dashboard's per-event attendance streak) should
- * read from here instead of grabbing only the first match.
+ * open events (like the dashboard's event schedule list) should read from
+ * here instead of grabbing only the first match. The attendance streak
+ * itself is no longer per-event — see MyAttendanceStreak, which reads a
+ * single global cross-event streak from the dashboard summary instead.
  */
 export function useActiveEvents() {
     const { data: events, isLoading } = useQuery({

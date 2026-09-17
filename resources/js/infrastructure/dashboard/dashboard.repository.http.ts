@@ -79,6 +79,24 @@ export interface DashboardDepartmentPenalty {
     percentageOfOverall: number;
 }
 
+/**
+ * One row of the global, cross-department Top-5 streak leaderboard —
+ * every role's dashboard carries the same list, since it's a school-wide
+ * ranking rather than something scoped to whoever's looking at it. See
+ * the backend's ComputeAttendanceStreaks/BuildStreakLeaderboard for how
+ * rank and the tiebreak (fastest latest scan on an equal streak) are
+ * derived.
+ */
+export interface DashboardStreakLeaderboardEntry {
+    rank: number;
+    studentId: number;
+    studentName: string;
+    studentNumber: string;
+    departmentCode: string | null;
+    currentStreak: number;
+    longestStreak: number;
+}
+
 /** Shared by System Admin / CSG Admin (scope 'global') and SC Admin (scope 'department'). */
 export interface AdminDashboardSummary {
     role: Role;
@@ -97,6 +115,8 @@ export interface AdminDashboardSummary {
     penaltyByEvent: DashboardEventPenalty[];
     /** The same total, broken down per department, highest first. */
     penaltyByDepartment: DashboardDepartmentPenalty[];
+    /** Global top-5 attendance-streak leaderboard — see DashboardStreakLeaderboardEntry. */
+    streakLeaderboard: DashboardStreakLeaderboardEntry[];
 }
 
 export interface OfficerDashboardSummary {
@@ -105,6 +125,7 @@ export interface OfficerDashboardSummary {
     myScans: number;
     totalScans: number;
     contributionPercentage: number;
+    streakLeaderboard: DashboardStreakLeaderboardEntry[];
 }
 
 export interface StudentDashboardSummary {
@@ -113,6 +134,14 @@ export interface StudentDashboardSummary {
     penaltyTotal: number;
     activeSession: DashboardActiveSession | null;
     activeSessionStatus: AttendanceStatus | null;
+    /**
+     * This caller's own current/longest attendance streak — global and
+     * cross-event (spec: it keeps running across an event boundary
+     * instead of resetting), computed server-side so it can never drift
+     * from what the leaderboard below is ranking on.
+     */
+    streak: { current: number; longest: number };
+    streakLeaderboard: DashboardStreakLeaderboardEntry[];
 }
 
 export type DashboardSummary = AdminDashboardSummary | OfficerDashboardSummary | StudentDashboardSummary;
@@ -169,6 +198,16 @@ interface RawDepartmentPenalty {
     percentage_of_overall: number;
 }
 
+interface RawStreakLeaderboardEntry {
+    rank: number;
+    student_id: number;
+    student_name: string;
+    student_number: string;
+    department_code: string | null;
+    current_streak: number;
+    longest_streak: number;
+}
+
 interface RawDashboardSummary {
     role: string;
     scope?: 'global' | 'department';
@@ -187,6 +226,8 @@ interface RawDashboardSummary {
     contribution_percentage?: number;
     totals?: { present: number; late: number; absent: number; excluded: number };
     active_session_status?: string | null;
+    streak?: { current: number; longest: number };
+    streak_leaderboard?: RawStreakLeaderboardEntry[];
 }
 
 function toActiveSession(raw: RawActiveSession | null): DashboardActiveSession | null {
@@ -217,8 +258,21 @@ function toSessionCounts(raw: RawSessionCounts | null | undefined): DashboardSes
     };
 }
 
+function toStreakLeaderboard(raw: RawStreakLeaderboardEntry[] | undefined): DashboardStreakLeaderboardEntry[] {
+    return (raw ?? []).map((row) => ({
+        rank: row.rank,
+        studentId: row.student_id,
+        studentName: row.student_name,
+        studentNumber: row.student_number,
+        departmentCode: row.department_code,
+        currentStreak: row.current_streak,
+        longestStreak: row.longest_streak,
+    }));
+}
+
 function toDashboardSummary(raw: RawDashboardSummary): DashboardSummary {
     const activeSession = toActiveSession(raw.active_session);
+    const streakLeaderboard = toStreakLeaderboard(raw.streak_leaderboard);
 
     if (raw.role === 'officer') {
         return {
@@ -227,6 +281,7 @@ function toDashboardSummary(raw: RawDashboardSummary): DashboardSummary {
             myScans: raw.my_scans ?? 0,
             totalScans: raw.total_scans ?? 0,
             contributionPercentage: raw.contribution_percentage ?? 0,
+            streakLeaderboard,
         };
     }
 
@@ -237,6 +292,8 @@ function toDashboardSummary(raw: RawDashboardSummary): DashboardSummary {
             penaltyTotal: raw.penalty_total ?? 0,
             activeSession,
             activeSessionStatus: (raw.active_session_status as AttendanceStatus | null) ?? null,
+            streak: raw.streak ?? { current: 0, longest: 0 },
+            streakLeaderboard,
         };
     }
 
@@ -274,6 +331,7 @@ function toDashboardSummary(raw: RawDashboardSummary): DashboardSummary {
             penaltyTotal: row.penalty_total,
             percentageOfOverall: row.percentage_of_overall,
         })),
+        streakLeaderboard,
     };
 }
 

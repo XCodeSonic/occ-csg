@@ -2,6 +2,8 @@
 
 namespace App\Application\Actions\Dashboard;
 
+use App\Application\Actions\Attendance\BuildStreakLeaderboard;
+use App\Application\Actions\Attendance\ComputeAttendanceStreaks;
 use App\Domain\Enums\Role;
 use App\Domain\Enums\SessionStatus;
 use App\Models\AttendancePenalty;
@@ -15,6 +17,12 @@ use Illuminate\Support\Facades\DB;
 
 final class BuildDashboardSummary
 {
+    public function __construct(
+        private readonly ComputeAttendanceStreaks $computeAttendanceStreaks = new ComputeAttendanceStreaks,
+        private readonly BuildStreakLeaderboard $buildStreakLeaderboard = new BuildStreakLeaderboard
+    ) {
+    }
+
     /**
      * Role-scoped dashboard summary. Every role gets a different shape —
      * dispatches on $user->role rather than returning one bloated payload
@@ -22,14 +30,23 @@ final class BuildDashboardSummary
      * caller's own scope, same reasoning as EventMyAttendanceController:
      * nothing here can reveal another account's data, so no extra Gate
      * is needed beyond being logged in.
+     *
+     * Every variant also carries the same global top-5 streak
+     * leaderboard (spec: "global leader board of students streak
+     * visible in the Dashboard top 5") — it isn't scoped per role/
+     * department the way the rest of an SC Admin's dashboard is,
+     * because it's explicitly a school-wide ranking, not a
+     * departmental one.
      */
     public function __invoke(Student $user): array
     {
+        $streakLeaderboard = ($this->buildStreakLeaderboard)(5);
+
         return match ($user->role) {
-            Role::SystemAdmin, Role::CsgAdmin => $this->buildAdminSummary($user, departmentId: null),
-            Role::ScAdmin => $this->buildAdminSummary($user, departmentId: $user->sc_admin_department_id),
-            Role::Officer => $this->buildOfficerSummary($user),
-            Role::Student => $this->buildStudentSummary($user),
+            Role::SystemAdmin, Role::CsgAdmin => $this->buildAdminSummary($user, departmentId: null, streakLeaderboard: $streakLeaderboard),
+            Role::ScAdmin => $this->buildAdminSummary($user, departmentId: $user->sc_admin_department_id, streakLeaderboard: $streakLeaderboard),
+            Role::Officer => $this->buildOfficerSummary($user, $streakLeaderboard),
+            Role::Student => $this->buildStudentSummary($user, $streakLeaderboard),
         };
     }
 
@@ -38,7 +55,7 @@ final class BuildDashboardSummary
      * $departmentId) share the exact same shape — SC Admin is just the
      * same dashboard with every count filtered to one department.
      */
-    private function buildAdminSummary(Student $user, ?int $departmentId): array
+    private function buildAdminSummary(Student $user, ?int $departmentId, array $streakLeaderboard): array
     {
         $studentQuery = Student::where('role', Role::Student)
             ->when($departmentId, fn ($q) => $q->where('department_id', $departmentId));
@@ -77,6 +94,7 @@ final class BuildDashboardSummary
             // department is actually costing the most" is a different (and
             // just as useful) question from penalty-by-event.
             'penalty_by_department' => $this->penaltyByDepartment($departmentId),
+            'streak_leaderboard' => $streakLeaderboard,
         ];
     }
 
@@ -87,7 +105,7 @@ final class BuildDashboardSummary
      * counted once per record since ScanAttendance is idempotent (a
      * duplicate scan never creates a second row).
      */
-    private function buildOfficerSummary(Student $user): array
+    private function buildOfficerSummary(Student $user, array $streakLeaderboard): array
     {
         $myScans = AttendanceRecord::where('scanned_by', $user->id)->count();
         $totalScans = AttendanceRecord::whereNotNull('scanned_by')->count();
@@ -100,10 +118,11 @@ final class BuildDashboardSummary
             'contribution_percentage' => $totalScans > 0
                 ? round($myScans / $totalScans * 100, 2)
                 : 0.0,
+            'streak_leaderboard' => $streakLeaderboard,
         ];
     }
 
-    private function buildStudentSummary(Student $user): array
+    private function buildStudentSummary(Student $user, array $streakLeaderboard): array
     {
         $statusCounts = AttendanceRecord::where('student_id', $user->id)
             ->select('status', DB::raw('count(*) as cnt'))
@@ -116,6 +135,15 @@ final class BuildDashboardSummary
 
         $session = $this->findActiveSession();
 
+        // This caller's own row out of the same global, cross-event
+        // reduction the leaderboard above is built from — see
+        // ComputeAttendanceStreaks. Never scoped to whatever event
+        // happens to be active right now: it's the running streak across
+        // every event this student has ever been eligible for, carrying
+        // straight through event boundaries.
+        $streak = ($this->computeAttendanceStreaks)($user->id)->get($user->id)
+            ?? ['current' => 0, 'longest' => 0, 'latest_scan_at' => null];
+
         return [
             'role' => Role::Student->value,
             'totals' => [
@@ -127,6 +155,11 @@ final class BuildDashboardSummary
             'penalty_total' => $penaltyTotal,
             'active_session' => $this->describeSession($session),
             'active_session_status' => $session ? $this->myStatusForSession($session, $user) : null,
+            'streak' => [
+                'current' => $streak['current'],
+                'longest' => $streak['longest'],
+            ],
+            'streak_leaderboard' => $streakLeaderboard,
         ];
     }
 

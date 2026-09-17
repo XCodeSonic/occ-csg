@@ -40,7 +40,8 @@ import { AttendanceStatus, CHECK_TYPE_LABEL, Role, WINDOW_TYPE_LABEL } from '@/d
 import { cn, formatCurrency, formatDate, formatTimeOfDay } from '@/lib/utils';
 import { Heading, Text } from '@/presentation/components/typography';
 import { AnimatedCounter } from '@/presentation/components/dashboard/animated-counter';
-import { EventAttendanceStreak, AttendanceStreak } from '@/presentation/components/dashboard/attendance-streak';
+import { MyAttendanceStreak } from '@/presentation/components/dashboard/attendance-streak';
+import { StreakLeaderboard } from '@/presentation/components/dashboard/streak-leaderboard';
 import { EventSchedule, NoActiveEventCard } from '@/presentation/components/dashboard/event-schedule';
 import { RadialGauge, SegmentedRing } from '@/presentation/components/dashboard/gauges';
 import { Leaderboard, type LeaderboardEntry } from '@/presentation/components/dashboard/leaderboard';
@@ -197,8 +198,9 @@ function StudentDashboard({ summary }: { summary: StudentDashboardSummary }) {
     const tier = attendanceTier(rate);
 
     // Every event CSG hasn't ended yet — plural, since nothing stops more
-    // than one being open at once (see useActiveEvents). Each gets its own
-    // streak card below, not just whichever happened to load first.
+    // than one being open at once (see useActiveEvents). Used for the
+    // event schedule list below; the streak itself is global and
+    // cross-event now, so it no longer depends on this.
     const { activeEvents, isLoading: isActiveEventsLoading } = useActiveEvents();
 
     const stats: { status: AttendanceStatus; value: number; Icon: LucideIcon; tone: Tone }[] = [
@@ -238,16 +240,16 @@ function StudentDashboard({ summary }: { summary: StudentDashboardSummary }) {
                 ))}
             </motion.div>
 
-            {isActiveEventsLoading && (
-                <motion.div variants={item}>
-                    <AttendanceStreak event={undefined} isLoading />
-                </motion.div>
-            )}
-            {activeEvents.map((event) => (
-                <motion.div key={event.id} variants={item}>
-                    <EventAttendanceStreak eventId={event.id} />
-                </motion.div>
-            ))}
+            <motion.div variants={item}>
+                <MyAttendanceStreak streak={summary.streak} />
+            </motion.div>
+
+            <motion.div variants={item} className={STACK.label}>
+                <SectionLabel Icon={Trophy} tone="orange">
+                    Streak leaderboard
+                </SectionLabel>
+                <StreakLeaderboard entries={summary.streakLeaderboard} />
+            </motion.div>
 
             {/* 8px from the label to its content, 16px between the cards inside
                 it — so the label reads as belonging to the group rather than
@@ -320,6 +322,13 @@ function OfficerDashboard({ summary }: { summary: OfficerDashboardSummary }) {
                     Current session
                 </SectionLabel>
                 <ActiveSessionCard session={summary.activeSession} />
+            </motion.div>
+
+            <motion.div variants={item} className={STACK.label}>
+                <SectionLabel Icon={Trophy} tone="orange">
+                    Streak leaderboard
+                </SectionLabel>
+                <StreakLeaderboard entries={summary.streakLeaderboard} />
             </motion.div>
         </motion.div>
     );
@@ -423,6 +432,13 @@ function AdminDashboard({ summary, role }: { summary: Extract<DashboardSummary, 
                     <PenaltyStrip total={summary.penaltyTotal} canViewPenalties={PENALTY_VIEW_ROLES.includes(role)} />
                     <Leaderboard entries={penaltyEntries} emptyLabel="No penalties recorded yet." tone="amber" />
                 </div>
+            </motion.div>
+
+            <motion.div variants={item} className={STACK.label}>
+                <SectionLabel Icon={Trophy} tone="orange">
+                    Streak leaderboard
+                </SectionLabel>
+                <StreakLeaderboard entries={summary.streakLeaderboard} />
             </motion.div>
         </motion.div>
     );

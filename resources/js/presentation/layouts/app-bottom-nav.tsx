@@ -188,7 +188,7 @@ export function AppBottomNav({ student }: { student: Student }) {
                             {/* px-2 keeps the first/last item (which can be
                                 highlighted when active) clear of the
                                 panel's rounded edge instead of hugging it. */}
-                            <div className="mt-2 flex items-center justify-center gap-4 px-4 pb-2">
+                            <div className="mt-2 flex items-center justify-center gap-2 px-4 pb-2">
                                 {/* {canGoBack && (
                                     <motion.button
                                         layoutId="back-button"
@@ -211,7 +211,7 @@ export function AppBottomNav({ student }: { student: Student }) {
                                             to={item.to}
                                             className={({ isActive }) =>
                                                 cn(
-                                                    'group flex flex-col items-center gap-2 rounded-2xl px-4 py-4 text-primary-foreground/55 transition-colors',
+                                                    'group flex flex-col items-center gap-2 rounded-2xl px-2 py-4 text-primary-foreground/55 transition-colors',
                                                     isActive && 'text-primary-foreground',
                                                 )
                                             }
