@@ -93,6 +93,7 @@ export interface DashboardStreakLeaderboardEntry {
     studentName: string;
     studentNumber: string;
     departmentCode: string | null;
+    photoUrl: string | null;
     currentStreak: number;
     longestStreak: number;
 }
@@ -204,6 +205,7 @@ interface RawStreakLeaderboardEntry {
     student_name: string;
     student_number: string;
     department_code: string | null;
+    photo_url: string | null;
     current_streak: number;
     longest_streak: number;
 }
@@ -265,6 +267,7 @@ function toStreakLeaderboard(raw: RawStreakLeaderboardEntry[] | undefined): Dash
         studentName: row.student_name,
         studentNumber: row.student_number,
         departmentCode: row.department_code,
+        photoUrl: row.photo_url,
         currentStreak: row.current_streak,
         longestStreak: row.longest_streak,
     }));

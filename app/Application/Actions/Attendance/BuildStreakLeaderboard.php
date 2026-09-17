@@ -34,7 +34,7 @@ final class BuildStreakLeaderboard
      *
      * @return list<array{
      *     rank: int, student_id: int, student_name: string,
-     *     student_number: string, department_code: ?string,
+     *     student_number: string, department_code: ?string, photo_url: ?string,
      *     current_streak: int, longest_streak: int,
      * }>
      */
@@ -91,6 +91,7 @@ final class BuildStreakLeaderboard
                     'student_name' => $student ? trim("{$student->first_name} {$student->last_name}") : 'Unknown',
                     'student_number' => $student->student_number ?? '',
                     'department_code' => $student?->department?->code,
+                    'photo_url' => $student?->photo_url,
                     'current_streak' => $entry['current'],
                     'longest_streak' => $entry['longest'],
                 ];

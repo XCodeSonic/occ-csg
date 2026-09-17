@@ -1,6 +1,7 @@
 import { motion, type Variants } from 'framer-motion';
 import { Flame, Trophy } from 'lucide-react';
 
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent } from '@/components/ui/card';
 import type { DashboardStreakLeaderboardEntry } from '@/infrastructure/dashboard/dashboard.repository.http';
 import { cn } from '@/lib/utils';
@@ -37,6 +38,27 @@ function RankBadge({ rank }: { rank: number }) {
 }
 
 /**
+ * The leaderboard's studentName arrives already combined ("First Last"),
+ * unlike UserAvatar's Student prop which wants separate first/last names —
+ * so initials are taken straight from the combined string's word starts
+ * instead of pulling UserAvatar in for a shape it doesn't have.
+ */
+function initialsFromName(name: string): string {
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return '?';
+    return (parts[0][0] + (parts[parts.length - 1]?.[0] ?? '')).toUpperCase();
+}
+
+function StudentPhoto({ entry }: { entry: DashboardStreakLeaderboardEntry }) {
+    return (
+        <Avatar size="sm" className="shrink-0">
+            {entry.photoUrl ? <AvatarImage src={entry.photoUrl} alt={entry.studentName} /> : null}
+            <AvatarFallback>{initialsFromName(entry.studentName)}</AvatarFallback>
+        </Avatar>
+    );
+}
+
+/**
  * Global, cross-department Top-5 by current attendance streak — every
  * role's dashboard shows the same list (see BuildStreakLeaderboard),
  * since it's a school-wide ranking rather than something scoped to
@@ -68,6 +90,7 @@ export function StreakLeaderboard({ entries }: { entries: DashboardStreakLeaderb
                         >
                             <div className="flex min-w-0 items-center gap-3">
                                 <RankBadge rank={entry.rank} />
+                                <StudentPhoto entry={entry} />
                                 <div className="min-w-0">
                                     <Text variant="small" className="truncate font-medium text-foreground">
                                         {entry.studentName}
