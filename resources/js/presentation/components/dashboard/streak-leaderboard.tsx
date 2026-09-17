@@ -22,9 +22,9 @@ const row: Variants = {
  * app's existing meanings.
  */
 const MEDAL_BADGE: Record<1 | 2 | 3, string> = {
-    1: 'bg-gradient-to-br from-yellow-300 via-amber-400 to-yellow-600 text-amber-950 shadow-lg shadow-amber-500/50',
-    2: 'bg-gradient-to-br from-slate-200 via-slate-300 to-slate-400 text-slate-800 shadow-md shadow-slate-400/40',
-    3: 'bg-gradient-to-br from-orange-300 via-orange-500 to-amber-700 text-white shadow-md shadow-orange-700/40',
+    1: 'bg-gradient-to-br from-yellow-300 via-amber-400 to-yellow-600 text-amber-950 shadow-md shadow-amber-500/40',
+    2: 'bg-gradient-to-br from-slate-200 via-slate-300 to-slate-400 text-slate-800 shadow-md shadow-slate-400/30',
+    3: 'bg-gradient-to-br from-orange-300 via-orange-500 to-amber-700 text-white shadow-md shadow-orange-700/30',
 };
 
 const MEDAL_RING: Record<1 | 2 | 3, string> = {
@@ -34,24 +34,24 @@ const MEDAL_RING: Record<1 | 2 | 3, string> = {
 };
 
 /**
- * Rank marker — gold/silver/bronze badge with a trophy (1st) or medal
- * (2nd/3rd) glyph for the top 3, a plain numbered chip for anyone past
- * that. Same slot every other leaderboard's RankBadge uses, just with
- * the medal treatment for the podium spots instead of only #1 standing
- * out.
+ * Rank marker for the top 3 — a small rounded-full pill carrying a
+ * trophy (1st) or medal (2nd/3rd) glyph, in the same "soft chip" shape
+ * the streak count pill uses, rather than the boxy rounded-xl square
+ * this used to be. Ranks past 3 fall back to a plain muted number chip,
+ * same shape family so the row still reads as one set.
  */
 function RankBadge({ rank }: { rank: number }) {
     if (rank === 1 || rank === 2 || rank === 3) {
         const Icon = rank === 1 ? Trophy : Medal;
         return (
-            <span className={cn('flex size-8 shrink-0 items-center justify-center rounded-xl', MEDAL_BADGE[rank])}>
+            <span className={cn('flex size-8 shrink-0 items-center justify-center rounded-full', MEDAL_BADGE[rank])}>
                 <Icon className="size-4" />
             </span>
         );
     }
 
     return (
-        <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-muted text-xs font-bold tabular-nums text-muted-foreground">
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-bold tabular-nums text-muted-foreground">
             {rank}
         </span>
     );
@@ -67,6 +67,20 @@ function initialsFromName(name: string): string {
     const parts = name.trim().split(/\s+/).filter(Boolean);
     if (parts.length === 0) return '?';
     return (parts[0][0] + (parts[parts.length - 1]?.[0] ?? '')).toUpperCase();
+}
+
+/**
+ * Just the clock time (e.g. "1:05 PM"), in the viewer's local time —
+ * latestScanAt is a genuine UTC instant, not a wall-clock string, so
+ * unlike formatTimeOfDay this does convert timezones (same reasoning
+ * formatScannedAt in lib/utils uses). No date attached: this sits next
+ * to a leaderboard row, not a ledger entry, so only "how recently did
+ * they scan" matters here, not which day.
+ */
+function formatScanTime(value: string | null): string | null {
+    if (!value) return null;
+
+    return new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' }).format(new Date(value));
 }
 
 function StudentPhoto({ entry }: { entry: DashboardStreakLeaderboardEntry }) {
@@ -130,6 +144,7 @@ export function StreakLeaderboard({ entries }: { entries: DashboardStreakLeaderb
                 <motion.div variants={container} initial="hidden" animate="show" className={STACK.group}>
                     {entries.map((entry) => {
                         const isTop = entry.rank === 1;
+                        const scanTime = formatScanTime(entry.latestScanAt);
 
                         return (
                             <motion.div
@@ -165,6 +180,7 @@ export function StreakLeaderboard({ entries }: { entries: DashboardStreakLeaderb
                                         <Text variant="caption" className="truncate">
                                             {entry.departmentCode ?? '—'}
                                             {entry.section ? ` · ${entry.section}` : ''}
+                                            {scanTime ? ` · ${scanTime}` : ''}
                                         </Text>
                                     </div>
                                 </div>

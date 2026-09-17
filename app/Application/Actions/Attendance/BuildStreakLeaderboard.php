@@ -35,7 +35,7 @@ final class BuildStreakLeaderboard
      * @return list<array{
      *     rank: int, student_id: int, student_name: string,
      *     section: ?string, department_code: ?string, photo_url: ?string,
-     *     current_streak: int, longest_streak: int,
+     *     current_streak: int, longest_streak: int, latest_scan_at: ?string,
      * }>
      */
     public function __invoke(int $limit = 5): array
@@ -94,6 +94,7 @@ final class BuildStreakLeaderboard
                     'photo_url' => $student?->photo_url,
                     'current_streak' => $entry['current'],
                     'longest_streak' => $entry['longest'],
+                    'latest_scan_at' => $entry['latest_scan_at']?->toISOString(),
                 ];
             })
             ->all();

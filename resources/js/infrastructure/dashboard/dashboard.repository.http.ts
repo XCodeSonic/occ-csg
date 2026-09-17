@@ -96,6 +96,8 @@ export interface DashboardStreakLeaderboardEntry {
     photoUrl: string | null;
     currentStreak: number;
     longestStreak: number;
+    /** ISO instant of this student's most recent real scan — null if they've never scanned. */
+    latestScanAt: string | null;
 }
 
 /** Shared by System Admin / CSG Admin (scope 'global') and SC Admin (scope 'department'). */
@@ -208,6 +210,7 @@ interface RawStreakLeaderboardEntry {
     photo_url: string | null;
     current_streak: number;
     longest_streak: number;
+    latest_scan_at: string | null;
 }
 
 interface RawDashboardSummary {
@@ -270,6 +273,7 @@ function toStreakLeaderboard(raw: RawStreakLeaderboardEntry[] | undefined): Dash
         photoUrl: row.photo_url,
         currentStreak: row.current_streak,
         longestStreak: row.longest_streak,
+        latestScanAt: row.latest_scan_at,
     }));
 }
 
