@@ -45,7 +45,7 @@ export function AuthLayout({ title, description, children }: AuthLayoutProps) {
                         className="mb-4 size-20 object-contain drop-shadow-[0_10px_24px_rgba(109,40,217,0.28)]"
                     />
                     <Heading level="display" as="p" className="text-h3">
-                        Central Government Council
+                        Central Student Government
                     </Heading>
                 </div>
 
