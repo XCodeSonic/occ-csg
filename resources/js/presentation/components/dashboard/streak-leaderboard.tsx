@@ -1,5 +1,5 @@
 import { motion, type Variants } from 'framer-motion';
-import { Crown, Flame } from 'lucide-react';
+import { Flame, Medal, Trophy } from 'lucide-react';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent } from '@/components/ui/card';
@@ -9,11 +9,7 @@ import { CARD, STACK } from '@/presentation/components/spacing';
 import { Text } from '@/presentation/components/typography';
 import { Tile } from '@/presentation/components/tile';
 
-const container: Variants = { hidden: {}, show: { transition: { staggerChildren: 0.08, delayChildren: 0.15 } } };
-const podiumItem: Variants = {
-    hidden: { opacity: 0, y: 16, scale: 0.9 },
-    show: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.45, ease: [0.16, 1, 0.3, 1] } },
-};
+const container: Variants = { hidden: {}, show: { transition: { staggerChildren: 0.08, delayChildren: 0.1 } } };
 const row: Variants = {
     hidden: { opacity: 0, x: -8 },
     show: { opacity: 1, x: 0, transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] } },
@@ -21,38 +17,45 @@ const row: Variants = {
 
 /**
  * Gold / silver / bronze — a fixed, universally-read color language
- * (podiums, medals, trophies), used only here rather than borrowed from
- * the dashboard's usual single-hue TONE system. "1st place" isn't
- * Present/Late/Absent or any of the app's existing meanings, so it
- * intentionally sits outside that palette instead of being force-fit
- * onto one of its hues.
+ * (medals, podiums, trophies) rather than one of the dashboard's usual
+ * TONE hues, since "1st place" isn't Present/Late/Absent or any of the
+ * app's existing meanings.
  */
-const MEDAL = {
-    1: {
-        ring: 'ring-4 ring-amber-300 dark:ring-amber-400',
-        glow: 'bg-amber-400/50',
-        crown: 'text-amber-400 fill-amber-400 drop-shadow-[0_0_6px_rgba(251,191,36,0.85)]',
-        step: 'bg-gradient-to-t from-amber-500 via-amber-400 to-yellow-300 text-amber-950',
-        stepHeight: 'h-20',
-        avatarSize: 'size-16',
-    },
-    2: {
-        ring: 'ring-4 ring-slate-300 dark:ring-slate-400',
-        glow: 'bg-slate-300/40',
-        crown: 'text-slate-300',
-        step: 'bg-gradient-to-t from-slate-400 via-slate-300 to-slate-200 text-slate-800',
-        stepHeight: 'h-14',
-        avatarSize: 'size-14',
-    },
-    3: {
-        ring: 'ring-4 ring-orange-400/80 dark:ring-orange-500/70',
-        glow: 'bg-orange-500/35',
-        crown: 'text-orange-400',
-        step: 'bg-gradient-to-t from-orange-700 via-orange-500 to-orange-400 text-white',
-        stepHeight: 'h-10',
-        avatarSize: 'size-14',
-    },
-} as const;
+const MEDAL_BADGE: Record<1 | 2 | 3, string> = {
+    1: 'bg-gradient-to-br from-yellow-300 via-amber-400 to-yellow-600 text-amber-950 shadow-lg shadow-amber-500/50',
+    2: 'bg-gradient-to-br from-slate-200 via-slate-300 to-slate-400 text-slate-800 shadow-md shadow-slate-400/40',
+    3: 'bg-gradient-to-br from-orange-300 via-orange-500 to-amber-700 text-white shadow-md shadow-orange-700/40',
+};
+
+const MEDAL_RING: Record<1 | 2 | 3, string> = {
+    1: 'ring-2 ring-amber-400',
+    2: 'ring-2 ring-slate-300',
+    3: 'ring-2 ring-orange-400/70',
+};
+
+/**
+ * Rank marker — gold/silver/bronze badge with a trophy (1st) or medal
+ * (2nd/3rd) glyph for the top 3, a plain numbered chip for anyone past
+ * that. Same slot every other leaderboard's RankBadge uses, just with
+ * the medal treatment for the podium spots instead of only #1 standing
+ * out.
+ */
+function RankBadge({ rank }: { rank: number }) {
+    if (rank === 1 || rank === 2 || rank === 3) {
+        const Icon = rank === 1 ? Trophy : Medal;
+        return (
+            <span className={cn('flex size-8 shrink-0 items-center justify-center rounded-xl', MEDAL_BADGE[rank])}>
+                <Icon className="size-4" />
+            </span>
+        );
+    }
+
+    return (
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-muted text-xs font-bold tabular-nums text-muted-foreground">
+            {rank}
+        </span>
+    );
+}
 
 /**
  * The leaderboard's studentName arrives already combined ("First Last"),
@@ -66,33 +69,37 @@ function initialsFromName(name: string): string {
     return (parts[0][0] + (parts[parts.length - 1]?.[0] ?? '')).toUpperCase();
 }
 
-function StudentPhoto({ entry, className }: { entry: DashboardStreakLeaderboardEntry; className?: string }) {
+function StudentPhoto({ entry }: { entry: DashboardStreakLeaderboardEntry }) {
+    const ring = entry.rank === 1 || entry.rank === 2 || entry.rank === 3 ? MEDAL_RING[entry.rank] : '';
+
     return (
-        <Avatar className={cn('size-9 shrink-0', className)}>
+        <Avatar size="sm" className={cn('shrink-0', ring)}>
             {entry.photoUrl ? <AvatarImage src={entry.photoUrl} alt={entry.studentName} /> : null}
-            <AvatarFallback className="font-semibold">{initialsFromName(entry.studentName)}</AvatarFallback>
+            <AvatarFallback>{initialsFromName(entry.studentName)}</AvatarFallback>
         </Avatar>
     );
 }
 
 /**
- * The current-streak count as a little fire pill — filled gradient +
- * glow for the podium's top spot (the number that's supposed to catch
- * the eye first), a quieter tinted version everywhere else. Same
- * "solid vs soft" idea as TONE, just built for a pill instead of a tile.
+ * The current-streak count. #1 gets the same gold treatment as its
+ * badge/ring — a solid gold pill instead of plain text — so the whole
+ * row reads as one matched "VIP" set rather than the flame being the
+ * one piece left behind.
  */
-function StreakBadge({ value, highlight = false }: { value: number; highlight?: boolean }) {
+function StreakCount({ value, isTop }: { value: number; isTop: boolean }) {
+    if (isTop) {
+        return (
+            <div className="flex shrink-0 items-center gap-1 rounded-full bg-gradient-to-r from-amber-500 to-yellow-400 px-2.5 py-1 text-white shadow-md shadow-amber-500/40">
+                <Flame className="size-4 fill-white" />
+                <span className="text-small font-semibold tabular-nums">{value}</span>
+            </div>
+        );
+    }
+
     return (
-        <div
-            className={cn(
-                'flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1',
-                highlight
-                    ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-md shadow-orange-500/40'
-                    : 'bg-orange-500/12 text-orange-600 dark:bg-orange-500/15 dark:text-orange-400',
-            )}
-        >
-            <Flame className={cn('size-3.5', highlight ? 'fill-white' : 'fill-orange-500/70')} />
-            <span className="text-xs font-bold tabular-nums">{value}</span>
+        <div className="flex shrink-0 items-center gap-1 text-orange-500">
+            <Flame className="size-4 fill-orange-500" />
+            <span className="text-small font-semibold tabular-nums text-foreground">{value}</span>
         </div>
     );
 }
@@ -104,11 +111,6 @@ function StreakBadge({ value, highlight = false }: { value: number; highlight?: 
  * whoever's looking at it. Ties on streak are broken server-side by
  * scan speed, so the order here is already final; this component just
  * renders it.
- *
- * Styled like a gamification app's leaderboard rather than another plain
- * dashboard list: the top 3 get a podium — gold/silver/bronze steps,
- * a glowing ring around each photo, a crown over 1st — and only ranks
- * 4-5 fall back to a simple numbered row.
  */
 export function StreakLeaderboard({ entries }: { entries: DashboardStreakLeaderboardEntry[] }) {
     if (entries.length === 0) {
@@ -122,78 +124,40 @@ export function StreakLeaderboard({ entries }: { entries: DashboardStreakLeaderb
         );
     }
 
-    const podium = entries.slice(0, 3);
-    const rest = entries.slice(3);
-
-    // Classic podium arrangement — 2nd on the left, 1st in the middle
-    // (tallest step), 3rd on the right — built from whichever of the
-    // three actually exist (a leaderboard with only 1-2 students still
-    // renders correctly, just with empty slots skipped).
-    const podiumOrder = [podium[1], podium[0], podium[2]].filter(
-        (entry): entry is DashboardStreakLeaderboardEntry => Boolean(entry),
-    );
-
     return (
-        <Card className={cn('overflow-hidden border-amber-500/20 bg-gradient-to-b from-amber-500/5 via-card to-card', CARD.root)}>
-            <CardContent className={cn(CARD.inset, STACK.group)}>
-                <motion.div
-                    variants={container}
-                    initial="hidden"
-                    animate="show"
-                    className="flex items-end justify-center gap-3 pt-2"
-                >
-                    {podiumOrder.map((entry) => {
-                        const medal = MEDAL[entry.rank as 1 | 2 | 3];
-                        if (!medal) return null;
+        <Card className={cn('overflow-hidden', CARD.root)}>
+            <CardContent className={CARD.inset}>
+                <motion.div variants={container} initial="hidden" animate="show" className={STACK.group}>
+                    {entries.map((entry) => {
+                        const isTop = entry.rank === 1;
 
                         return (
-                            <motion.div key={entry.studentId} variants={podiumItem} className="flex flex-col items-center gap-2">
-                                <div className="relative">
-                                    {entry.rank === 1 && (
-                                        <Crown
-                                            className={cn('absolute -top-5 left-1/2 size-6 -translate-x-1/2', medal.crown)}
-                                            strokeWidth={2.5}
-                                        />
-                                    )}
-                                    <span
+                            <motion.div
+                                key={entry.studentId}
+                                variants={row}
+                                className={cn(
+                                    'relative flex items-center justify-between gap-2 overflow-hidden',
+                                    isTop &&
+                                        'rounded-2xl border border-amber-400/40 bg-gradient-to-r from-amber-500/15 via-amber-400/10 to-transparent px-3 py-2 shadow-sm shadow-amber-500/20',
+                                )}
+                            >
+                                {/* A slow diagonal sheen sweeping across the #1 row —
+                                    same shimmer trick the bottom nav's Scan icon
+                                    uses — is what reads as "premium" rather than
+                                    just gold-colored: a static gold fill looks flat,
+                                    a moving highlight looks lit. */}
+                                {isTop && (
+                                    <motion.span
                                         aria-hidden
-                                        className={cn(
-                                            'pointer-events-none absolute inset-0 -z-10 scale-125 rounded-full opacity-70 blur-lg',
-                                            medal.glow,
-                                        )}
+                                        className="pointer-events-none absolute inset-y-0 w-1/3 -skew-x-12 bg-gradient-to-r from-transparent via-white/50 to-transparent mix-blend-overlay"
+                                        animate={{ x: ['-130%', '230%'] }}
+                                        transition={{ duration: 2.6, repeat: Infinity, repeatDelay: 2, ease: 'easeInOut' }}
                                     />
-                                    <StudentPhoto entry={entry} className={cn(medal.avatarSize, medal.ring)} />
-                                </div>
+                                )}
 
-                                <Text variant="caption" className="max-w-20 truncate text-center font-semibold text-foreground">
-                                    {entry.studentName}
-                                </Text>
-
-                                <StreakBadge value={entry.currentStreak} highlight={entry.rank === 1} />
-
-                                <div
-                                    className={cn(
-                                        'flex w-14 items-center justify-center rounded-t-lg text-sm font-bold shadow-inner',
-                                        medal.step,
-                                        medal.stepHeight,
-                                    )}
-                                >
-                                    {entry.rank}
-                                </div>
-                            </motion.div>
-                        );
-                    })}
-                </motion.div>
-
-                {rest.length > 0 && (
-                    <motion.div variants={container} initial="hidden" animate="show" className={cn(STACK.group, 'border-t pt-3')}>
-                        {rest.map((entry) => (
-                            <motion.div key={entry.studentId} variants={row} className="flex items-center justify-between gap-2">
                                 <div className="flex min-w-0 items-center gap-3">
-                                    <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-muted text-xs font-bold tabular-nums text-muted-foreground">
-                                        {entry.rank}
-                                    </span>
-                                    <StudentPhoto entry={entry} className="size-8" />
+                                    <RankBadge rank={entry.rank} />
+                                    <StudentPhoto entry={entry} />
                                     <div className="min-w-0">
                                         <Text variant="small" className="truncate font-medium text-foreground">
                                             {entry.studentName}
@@ -205,11 +169,11 @@ export function StreakLeaderboard({ entries }: { entries: DashboardStreakLeaderb
                                     </div>
                                 </div>
 
-                                <StreakBadge value={entry.currentStreak} />
+                                <StreakCount value={entry.currentStreak} isTop={isTop} />
                             </motion.div>
-                        ))}
-                    </motion.div>
-                )}
+                        );
+                    })}
+                </motion.div>
             </CardContent>
         </Card>
     );
