@@ -129,6 +129,48 @@ export interface CreateSessionPayload {
     penalty_absent_amount?: number | null;
 }
 
+// event-day-window-edit-delete-plan.md §4.3a: every field optional — a
+// PATCH may touch just one of them (e.g. only grace_minutes). Mirrors
+// CreateSessionPayload's shape.
+export interface UpdateSessionPayload {
+    window_type?: string;
+    check_type?: string;
+    start_time?: string;
+    end_time?: string;
+    grace_minutes?: number | null;
+    penalty_late_amount?: number | null;
+    penalty_absent_amount?: number | null;
+}
+
+// §4.3a/§4.4: how many active Window-scope exclusions were soft-removed —
+// only non-zero when this delete removed the last remaining check of its
+// window.
+export interface DeleteSessionResult {
+    sessionId: number;
+    exclusionsRemoved: number;
+}
+
+interface RawDeleteSessionResult {
+    session_id: number;
+    exclusions_removed: number;
+}
+
+// §4.3b: the whole-window delete convenience — every still-Scheduled
+// check of one window_type on one day, in a single call.
+export interface DeleteWindowResult {
+    eventDayId: number;
+    windowType: string;
+    sessionsDeleted: number;
+    exclusionsRemoved: number;
+}
+
+interface RawDeleteWindowResult {
+    event_day_id: number;
+    window_type: string;
+    sessions_deleted: number;
+    exclusions_removed: number;
+}
+
 interface RawCreatedSession {
     id: number;
     event_day_id: number;
@@ -177,6 +219,36 @@ export const httpSessionsRepository = {
     async endSession(sessionId: number): Promise<AttendanceSession> {
         const { data } = await httpClient.post<RawCreatedSession>(`/sessions/${sessionId}/end`);
         return toAttendanceSession(data);
+    },
+
+    // event-day-window-edit-delete-plan.md §4.3a: a single check, only
+    // while it's still Scheduled (UpdateSession). A 422 with a
+    // `window_type` validation error means the edited (window_type,
+    // check_type) pair now collides with a sibling check on the same day.
+    async updateSession(sessionId: number, payload: UpdateSessionPayload): Promise<AttendanceSession> {
+        const { data } = await httpClient.patch<RawCreatedSession>(`/sessions/${sessionId}`, payload);
+        return toAttendanceSession(data);
+    },
+
+    // §4.3a/§4.4: refused with 409 if the session isn't Scheduled, or its
+    // event has already ended. Cascades the window's exclusion
+    // soft-removal if this was its last remaining check.
+    async deleteSession(sessionId: number): Promise<DeleteSessionResult> {
+        const { data } = await httpClient.delete<RawDeleteSessionResult>(`/sessions/${sessionId}`);
+        return { sessionId: data.session_id, exclusionsRemoved: data.exclusions_removed };
+    },
+
+    // §4.3b: deletes every still-Scheduled check of one window_type on
+    // one day. Refused whole (409) if even one check in the window has
+    // started or ended.
+    async deleteWindow(eventDayId: number, windowType: string): Promise<DeleteWindowResult> {
+        const { data } = await httpClient.delete<RawDeleteWindowResult>(`/event-days/${eventDayId}/windows/${windowType}`);
+        return {
+            eventDayId: data.event_day_id,
+            windowType: data.window_type,
+            sessionsDeleted: data.sessions_deleted,
+            exclusionsRemoved: data.exclusions_removed,
+        };
     },
 
     async scan(sessionId: number, token: string): Promise<ScanResult> {

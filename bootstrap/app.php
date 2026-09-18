@@ -41,6 +41,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'password.changed' => \App\Http\Middleware\EnsurePasswordHasBeenChanged::class,
+            'photo.uploaded' => \App\Http\Middleware\EnsurePhotoHasBeenUploaded::class,
         ]);
 
         // Global security headers for the SPA shell and API responses.

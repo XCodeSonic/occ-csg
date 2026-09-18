@@ -72,6 +72,38 @@ export function formatCurrency(value: number): string {
 }
 
 /**
+ * Parses a plain "YYYY-MM-DD" calendar date as UTC midnight — the same
+ * timezone-sidestepping trick as formatDate, so date arithmetic below
+ * never drifts a day depending on the viewer's local timezone or DST.
+ */
+function parseDateOnly(value: string): Date {
+    const [year, month, day] = value.slice(0, 10).split('-').map(Number);
+    return new Date(Date.UTC(year, month - 1, day));
+}
+
+function formatDateOnly(date: Date): string {
+    return date.toISOString().slice(0, 10);
+}
+
+/**
+ * event-day-window-edit-delete-plan.md §4.5 point 4: "must use real date
+ * arithmetic, never string math" — "June 30 + 1 day" must become July 1,
+ * not "June 31". Used by the Reschedule flow's default-suggestion
+ * cascade (shifting later days by the same delta as the one the admin
+ * just edited).
+ */
+export function addDaysToDateOnly(value: string, days: number): string {
+    const date = parseDateOnly(value);
+    date.setUTCDate(date.getUTCDate() + days);
+    return formatDateOnly(date);
+}
+
+/** Whole-day difference between two "YYYY-MM-DD" dates (a - b). */
+export function diffDateOnlyDays(a: string, b: string): number {
+    return Math.round((parseDateOnly(a).getTime() - parseDateOnly(b).getTime()) / (24 * 60 * 60 * 1000));
+}
+
+/**
  * Student IDs are stored (and matched on) in dashed form —
  * "2023-1-05413" — but typing dashes is annoying, so this reformats
  * whatever's typed/pasted into that shape as the person goes. It works

@@ -14,6 +14,14 @@ import { Tile } from '@/presentation/components/tile';
 import type { Tone } from '@/presentation/components/tone';
 import type { LucideIcon } from 'lucide-react';
 
+// 5MB is generous for what this actually needs to be: a single headshot,
+// not a full-resolution camera photo. A modern phone's default JPEG photo
+// is typically 2-6MB, so this rarely blocks someone who picked a normal
+// photo straight from their camera roll — but it still keeps a raw/HEIC
+// export or a screenshot of a whole gallery from slipping through. Mirrors
+// the backend ceiling in UpdateStudentPhotoRequest (max:5120 KB) exactly,
+// so a file that passes this check never gets rejected by the server for
+// size a second time.
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
 const ACCEPTED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
 
@@ -71,7 +79,10 @@ export function PersonalInformationPage() {
             return;
         }
         if (file.size > MAX_FILE_BYTES) {
-            toast.error('That image is larger than 5MB. Choose a smaller one.');
+            const currentMb = (file.size / (1024 * 1024)).toFixed(1);
+            toast.error(`That photo is ${currentMb}MB — the limit is 5MB.`, {
+                description: 'Please reduce the image size to 5MB or less (crop it, or lower the camera/export quality) and try again.',
+            });
             return;
         }
         setPendingFile(file);

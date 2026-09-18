@@ -73,6 +73,11 @@ function apiStudent(int $qrVersion = 1, string $studentNumber = '2023105413', st
         'password' => 'password',
         'qr_version' => $qrVersion,
         'role' => $role,
+        // Clears the photo.uploaded gate, so a plain-Student "notStaff"
+        // fixture reaches AttendanceSessionPolicy::scan (403) under test
+        // instead of being stopped early by the photo gate (423) — that
+        // gate is covered separately by EnsurePhotoHasBeenUploadedTest.
+        'photo_path' => 'students/placeholder.jpg',
     ]);
 }
 

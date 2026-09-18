@@ -14,7 +14,18 @@ class EventDay extends Model
 
     protected function casts(): array
     {
-        return ['date' => 'date'];
+        // Explicit 'Y-m-d' format (rather than the bare 'date' cast) so
+        // this column both stores and serializes as a plain date string.
+        // The bare 'date' cast still persists a full 'Y-m-d H:i:s'
+        // string on save (it only truncates time on the PHP-side
+        // accessor), which silently broke the (event_id, date)
+        // uniqueness check in UpdateEventDayRequest/StoreEventDayRequest
+        // — two different-looking dates could never collide because the
+        // stored values always carried a midnight timestamp that never
+        // matched the plain 'Y-m-d' string being validated against — and
+        // it serialized to JSON as an ISO datetime
+        // ('2026-11-15T00:00:00.000000Z') instead of '2026-11-15'.
+        return ['date' => 'date:Y-m-d'];
     }
 
     public function event(): BelongsTo
@@ -99,5 +110,48 @@ class EventDay extends Model
     public function hasWindow(WindowType $windowType): bool
     {
         return $this->sessions()->where('window_type', $windowType->value)->exists();
+    }
+
+    /**
+     * event-day-window-edit-delete-plan.md §4.2 — Bug #1: hasEnded() only
+     * detects "has fully finished", which is the wrong question for the
+     * edit/delete guards. Editing this day's date, or deleting the day
+     * outright, must be refused the moment *anything* under it has
+     * started (Ongoing) or finished (Ended) — not just once every
+     * session has finished. A day with zero sessions passes this check
+     * (nothing has started), matching §4.2's "or zero sessions exist"
+     * delete rule.
+     *
+     * @param  bool  $forUpdate  Same contract as hasEnded()/windowHasEnded():
+     *                           pass true from inside a DB::transaction()
+     *                           to lock every underlying session row this
+     *                           reads before evaluating it, so a
+     *                           concurrent StartSession/EndSession can't
+     *                           race past this check.
+     */
+    public function hasAnyStartedOrEndedSession(bool $forUpdate = false): bool
+    {
+        return $this->sessions()
+            ->when($forUpdate, fn ($q) => $q->lockForUpdate())
+            ->whereIn('status', [SessionStatus::Ongoing->value, SessionStatus::Ended->value])
+            ->exists();
+    }
+
+    /**
+     * Same derivation as hasAnyStartedOrEndedSession(), narrowed to one
+     * window_type — the guard for deleting a whole window (§4.3b): the
+     * delete must be refused whole the moment even one check (time-in or
+     * time-out) under that window has started or ended, not just once
+     * every check has fully ended (windowHasEnded()'s question).
+     *
+     * @param  bool  $forUpdate  See hasAnyStartedOrEndedSession()'s docblock.
+     */
+    public function windowHasAnyStartedOrEndedSession(WindowType $windowType, bool $forUpdate = false): bool
+    {
+        return $this->sessions()
+            ->where('window_type', $windowType->value)
+            ->when($forUpdate, fn ($q) => $q->lockForUpdate())
+            ->whereIn('status', [SessionStatus::Ongoing->value, SessionStatus::Ended->value])
+            ->exists();
     }
 }

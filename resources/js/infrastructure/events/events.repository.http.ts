@@ -14,6 +14,23 @@ export interface CreateEventDayPayload {
     day_number: number;
 }
 
+// event-day-window-edit-delete-plan.md §4.1: name/description only.
+export interface UpdateEventPayload {
+    name?: string;
+    description?: string | null;
+}
+
+// §4.2: date only.
+export interface UpdateEventDayPayload {
+    date: string;
+}
+
+// §4.5: one batch shift across several days of one event.
+export interface RescheduleTarget {
+    event_day_id: number;
+    date: string;
+}
+
 interface RawSession {
     id: number;
     event_day_id: number;
@@ -61,6 +78,30 @@ interface RawEvent {
     departments?: Array<{ id: number; name: string; code: string }>;
 }
 
+// Shared by the /events list response and by UpdateEventDay's response
+// (PATCH /event-days/{eventDay} returns the same fresh(['event', 'sessions'])
+// shape) — one place mapping a day-with-its-sessions instead of two.
+function toDay(day: RawDay): EventWithDays['days'][number] {
+    return {
+        id: day.id,
+        eventId: day.event_id,
+        date: day.date,
+        dayNumber: day.day_number,
+        sessions: (day.sessions ?? []).map((session) => ({
+            id: session.id,
+            eventDayId: session.event_day_id,
+            windowType: session.window_type as EventWithDays['days'][number]['sessions'][number]['windowType'],
+            checkType: session.check_type as EventWithDays['days'][number]['sessions'][number]['checkType'],
+            startTime: session.start_time,
+            endTime: session.end_time,
+            graceMinutes: session.grace_minutes,
+            penaltyLateAmount: Number(session.penalty_late_amount ?? 0),
+            penaltyAbsentAmount: Number(session.penalty_absent_amount ?? 0),
+            status: session.status as EventWithDays['days'][number]['sessions'][number]['status'],
+        })),
+    };
+}
+
 function toEvent(raw: RawEvent): EventWithDays {
     return {
         id: raw.id,
@@ -78,24 +119,7 @@ function toEvent(raw: RawEvent): EventWithDays {
                 code: department.code,
             }),
         ),
-        days: (raw.days ?? []).map((day) => ({
-            id: day.id,
-            eventId: day.event_id,
-            date: day.date,
-            dayNumber: day.day_number,
-            sessions: (day.sessions ?? []).map((session) => ({
-                id: session.id,
-                eventDayId: session.event_day_id,
-                windowType: session.window_type as EventWithDays['days'][number]['sessions'][number]['windowType'],
-                checkType: session.check_type as EventWithDays['days'][number]['sessions'][number]['checkType'],
-                startTime: session.start_time,
-                endTime: session.end_time,
-                graceMinutes: session.grace_minutes,
-                penaltyLateAmount: Number(session.penalty_late_amount ?? 0),
-                penaltyAbsentAmount: Number(session.penalty_absent_amount ?? 0),
-                status: session.status as EventWithDays['days'][number]['sessions'][number]['status'],
-            })),
-        })),
+        days: (raw.days ?? []).map(toDay),
     };
 }
 
@@ -252,6 +276,19 @@ interface RawEndEventResult {
     status: string;
 }
 
+// event-day-window-edit-delete-plan.md §4.2/§4.4: DeleteEventDay's
+// summary — how many active Day/Window-scope exclusions were soft-removed
+// as part of the cascade, so the UI can say more than just "day deleted".
+export interface DeleteEventDayResult {
+    eventDayId: number;
+    exclusionsRemoved: number;
+}
+
+interface RawDeleteEventDayResult {
+    event_day_id: number;
+    exclusions_removed: number;
+}
+
 export const httpEventsRepository = {
     async list(): Promise<EventWithDays[]> {
         const { data } = await httpClient.get<RawEvent[]>('/events');
@@ -296,5 +333,56 @@ export const httpEventsRepository = {
     // than trying to splice this into cache by hand.
     async createDay(eventId: number, payload: CreateEventDayPayload): Promise<void> {
         await httpClient.post(`/events/${eventId}/days`, payload);
+    },
+
+    // event-day-window-edit-delete-plan.md §4.1: name/description only,
+    // guarded server-side by event-not-ended (UpdateEvent). Response
+    // doesn't carry `days` (fresh(['departments', 'semester.academicYear'])
+    // only) — callers invalidate the events list rather than relying on
+    // this return value for the day/session tree.
+    async update(eventId: number, payload: UpdateEventPayload): Promise<EventWithDays> {
+        const { data } = await httpClient.patch<RawEvent>(`/events/${eventId}`, payload);
+        return toEvent(data);
+    },
+
+    // §4.2: date only, guarded server-side by event-not-ended + no
+    // started/ended session under the day (UpdateEventDay). A 422 with a
+    // `date` validation error means the target date collides with another
+    // day in this event — callers should offer Reschedule instead of
+    // retrying the same edit.
+    async updateDay(eventDayId: number, payload: UpdateEventDayPayload): Promise<EventWithDays['days'][number]> {
+        const { data } = await httpClient.patch<RawDay>(`/event-days/${eventDayId}`, payload);
+        return toDay(data);
+    },
+
+    // Whole-event delete — for "I created this by mistake." Refused with
+    // 409 if the event has ended, if any session anywhere under it has
+    // started or ended, or if any exclusion/report record already ties
+    // to it (see DeleteEvent on the backend for why the last one can't
+    // just cascade).
+    async delete(eventId: number): Promise<void> {
+        await httpClient.delete(`/events/${eventId}`);
+    },
+
+    // §4.2/§4.4: refused with 409 if any session under the day has
+    // started or ended, or the parent event has already ended. On
+    // success, cascades Day/Window-scope exclusion soft-removal — see
+    // exclusionsRemoved in the result.
+    async deleteDay(eventDayId: number): Promise<DeleteEventDayResult> {
+        const { data } = await httpClient.delete<RawDeleteEventDayResult>(`/event-days/${eventDayId}`);
+        return { eventDayId: data.event_day_id, exclusionsRemoved: data.exclusions_removed };
+    },
+
+    // §4.5: the resolution path for a single-day-edit date collision —
+    // shifts several days of one event atomically. `targets` only needs
+    // to include the days actually changing; every other day in the
+    // event is re-checked server-side against the final combined date
+    // set. Response is every day in the event (moved or not), sorted by
+    // day_number — callers still invalidate the events list rather than
+    // trying to splice this into cache by hand, since it has no nested
+    // sessions.
+    async reschedule(eventId: number, targets: RescheduleTarget[]): Promise<EventWithDays['days'][number][]> {
+        const { data } = await httpClient.patch<RawDay[]>(`/events/${eventId}/reschedule`, { targets });
+        return data.map(toDay);
     },
 };

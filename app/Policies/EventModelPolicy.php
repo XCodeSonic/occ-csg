@@ -49,4 +49,49 @@ class EventModelPolicy
     {
         return in_array($user->role, [Role::SystemAdmin, Role::CsgAdmin], true);
     }
+
+    /**
+     * event-day-window-edit-delete-plan.md §6 / Bug #10: editing an
+     * event's name/description is the same CSG-level power as creating
+     * one — same two roles, no per-event ownership check (events aren't
+     * department-owned, same reasoning as create()).
+     */
+    public function update(Student $user): bool
+    {
+        return in_array($user->role, [Role::SystemAdmin, Role::CsgAdmin], true);
+    }
+
+    /**
+     * Deleting the whole Event — same two-role gate as update()/create().
+     * The "is this event actually eligible" business rule (not ended, no
+     * started/ended session anywhere under it, no exclusion/report
+     * records tied to it) is enforced by DeleteEvent itself, not here,
+     * same split as deleteDay()/ExclusionPolicy::remove.
+     */
+    public function delete(Student $user): bool
+    {
+        return in_array($user->role, [Role::SystemAdmin, Role::CsgAdmin], true);
+    }
+
+    /**
+     * Editing a Day's date — same two-role gate as update()/create().
+     * The "is this day's own state eligible" business rule
+     * (hasAnyStartedOrEndedSession, event-ended, date uniqueness) is
+     * enforced by UpdateEventDay itself, not here, same split as
+     * ExclusionPolicy::remove.
+     */
+    public function updateDay(Student $user): bool
+    {
+        return in_array($user->role, [Role::SystemAdmin, Role::CsgAdmin], true);
+    }
+
+    /**
+     * Deleting a Day — same two-role gate as updateDay(). Also covers
+     * the plan's "Reschedule" bulk-date-shift flow (§4.5), which is a
+     * variant of the same edit power rather than a distinct one.
+     */
+    public function deleteDay(Student $user): bool
+    {
+        return in_array($user->role, [Role::SystemAdmin, Role::CsgAdmin], true);
+    }
 }

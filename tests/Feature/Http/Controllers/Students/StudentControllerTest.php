@@ -23,6 +23,11 @@ function studentTestStaff(string $role, string $studentNumber, ?int $scAdminDepa
         'username' => 'staff'.$studentNumber,
         'password' => 'password',
         'role' => $role,
+        // Clears the photo.uploaded gate, so a plain-Student fixture
+        // reaches the policy check (403) under test instead of being
+        // stopped early by the photo gate (423) — that gate is covered
+        // separately by EnsurePhotoHasBeenUploadedTest.
+        'photo_path' => 'students/placeholder.jpg',
     ]);
 }
 

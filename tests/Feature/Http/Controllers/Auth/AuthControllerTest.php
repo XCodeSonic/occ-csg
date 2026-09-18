@@ -29,6 +29,11 @@ function authTestStudent(array $overrides = []): Student
         'password' => 'correct-password',
         'role' => Role::Student,
         'must_change_password' => false,
+        // Clears the photo.uploaded gate — see the same note in
+        // ReverseScanControllerTest. These tests exercise the
+        // password-changed gate and role authorization, not the photo
+        // gate (covered separately by EnsurePhotoHasBeenUploadedTest).
+        'photo_path' => 'students/placeholder.jpg',
     ], $overrides));
 }
 

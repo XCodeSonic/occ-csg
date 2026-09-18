@@ -25,6 +25,11 @@ function historyTestStudent(string $role, string $studentNumber): Student
         'username' => 'user'.$studentNumber,
         'password' => 'password',
         'role' => $role,
+        // Clears the photo.uploaded gate — see the same note in
+        // ReverseScanControllerTest. This suite exercises attendance
+        // history, not the photo gate (covered separately by
+        // EnsurePhotoHasBeenUploadedTest).
+        'photo_path' => 'students/placeholder.jpg',
     ]);
 }
 

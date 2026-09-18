@@ -130,7 +130,7 @@ export function StreakLeaderboard({ entries }: { entries: DashboardStreakLeaderb
     if (entries.length === 0) {
         return (
             <Card className={CARD.root}>
-                <CardContent className={cn(CARD.inset, 'flex items-center gap-3')}>
+                <CardContent className={cn(CARD.inset, 'flex items-center gap-4')}>
                     <Tile tone="neutral" variant="soft" Icon={Flame} />
                     <Text variant="small">No one's on a streak yet.</Text>
                 </CardContent>
@@ -153,7 +153,7 @@ export function StreakLeaderboard({ entries }: { entries: DashboardStreakLeaderb
                                 className={cn(
                                     'relative flex items-center justify-between gap-2 overflow-hidden',
                                     isTop &&
-                                        'rounded-2xl border border-amber-400/40 bg-gradient-to-r from-amber-500/15 via-amber-400/10 to-transparent px-3 py-2 shadow-sm shadow-amber-500/20',
+                                        'rounded-2xl border border-amber-400/40 bg-gradient-to-r from-amber-500/15 via-amber-400/10 to-transparent px-4 py-2 shadow-sm shadow-amber-500/20',
                                 )}
                             >
                                 {/* A slow diagonal sheen sweeping across the #1 row —
@@ -170,7 +170,7 @@ export function StreakLeaderboard({ entries }: { entries: DashboardStreakLeaderb
                                     />
                                 )}
 
-                                <div className="flex min-w-0 items-center gap-3">
+                                <div className="flex min-w-0 items-center gap-4">
                                     <RankBadge rank={entry.rank} />
                                     <StudentPhoto entry={entry} />
                                     <div className="min-w-0">

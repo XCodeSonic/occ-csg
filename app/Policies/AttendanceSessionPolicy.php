@@ -90,4 +90,25 @@ class AttendanceSessionPolicy
     {
         return $this->scan($user);
     }
+
+    /**
+     * event-day-window-edit-delete-plan.md §6: creating a session is
+     * currently gated by EventModelPolicy::create rather than a
+     * same-named ability here — this normalizes update/delete onto the
+     * session's own policy instead of following that (slightly odd)
+     * precedent, while keeping the exact same two-role gate. Covers
+     * both a single-check edit/delete (§4.3a) and the whole-window
+     * delete convenience endpoint (§4.3b) — the latter isn't really
+     * "one session" but shares the same CSG-only audience, so it's
+     * gated with delete() too rather than a separate ability.
+     */
+    public function update(Student $user): bool
+    {
+        return in_array($user->role, [Role::SystemAdmin, Role::CsgAdmin], true);
+    }
+
+    public function delete(Student $user): bool
+    {
+        return in_array($user->role, [Role::SystemAdmin, Role::CsgAdmin], true);
+    }
 }

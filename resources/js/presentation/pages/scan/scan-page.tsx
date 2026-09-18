@@ -501,7 +501,7 @@ function RecentScansPanel({ sessionId, checkType }: { sessionId: number; checkTy
                     {recent.map((entry) => (
                         <div
                             key={entry.recordId}
-                            className="flex items-center gap-3 rounded-2xl border bg-card p-2"
+                            className="flex items-center gap-4 rounded-2xl border bg-card p-2"
                         >
                             <UserAvatar student={entry.student} className="size-9" />
                             <div className="min-w-0 flex-1">
@@ -554,7 +554,7 @@ function RecentScansPanel({ sessionId, checkType }: { sessionId: number; checkTy
                                     type="button"
                                     onClick={() => setRevertReason(preset)}
                                     className={cn(
-                                        'rounded-full border px-3 py-1.5 text-caption font-medium transition-colors',
+                                        'rounded-full border px-4 py-2 text-caption font-medium transition-colors',
                                         revertReason === preset
                                             ? 'border-red-500 bg-red-500/10 text-red-700'
                                             : 'border-border text-muted-foreground hover:bg-muted',

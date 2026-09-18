@@ -205,6 +205,7 @@ export function AppBottomNav({ student }: { student: Student }) {
                                 )} */}
                                 {items.map((item) => {
                                     const isHero = item.to === '/profile' || item.to === '/scan';
+
                                     return (
                                         <NavLink
                                             key={item.to}

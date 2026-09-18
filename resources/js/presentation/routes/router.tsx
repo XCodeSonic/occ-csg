@@ -4,6 +4,7 @@ import { AppLayout } from '@/presentation/layouts/app-layout';
 import { AcademicYearsPage } from '@/presentation/pages/academic-years/academic-years-page';
 import { AccountPage } from '@/presentation/pages/account/account-page';
 import { AttendanceHistoryPage } from '@/presentation/pages/account/attendance-history-page';
+import { CompleteProfilePage } from '@/presentation/pages/account/complete-profile-page';
 import { FaqPage } from '@/presentation/pages/account/faq-page';
 import { PersonalInformationPage } from '@/presentation/pages/account/personal-information-page';
 import { AttendanceHistoryAdminPage } from '@/presentation/pages/attendance-history/attendance-history-admin-page';
@@ -39,6 +40,7 @@ export const router = createBrowserRouter([
                 element: <ProtectedRoute />,
                 children: [
                     { path: '/change-password', element: <ChangePasswordPage /> },
+                    { path: '/complete-profile', element: <CompleteProfilePage /> },
                     {
                         element: <AppLayout />,
                         children: [

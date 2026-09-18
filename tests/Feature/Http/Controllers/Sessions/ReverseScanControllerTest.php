@@ -42,6 +42,11 @@ function revScanApiStudent(string $studentNumber, string $username, Role $role =
         // must_change_password = true. Cleared on the fixture so requests
         // actually reach the policy and controller under test.
         'must_change_password' => false,
+        // Clears the photo.uploaded gate too, so a plain-Student fixture
+        // reaches the policy check (403) under test instead of being
+        // stopped early by the photo gate (423) — that gate is covered
+        // separately by EnsurePhotoHasBeenUploadedTest.
+        'photo_path' => 'students/placeholder.jpg',
     ]);
 }
 

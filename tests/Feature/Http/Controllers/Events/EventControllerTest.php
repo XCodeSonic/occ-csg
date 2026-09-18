@@ -212,6 +212,35 @@ it('allows a time-out session for the same window_type once time-in already exis
         ->assertStatus(201);
 });
 
+it('returns 409 adding a new day to an already-ended event', function () {
+    $admin = eventTestStaff('csg_admin', '2020000001');
+    $event = EventModel::create([
+        'name' => 'Intramurals 2026', 'created_by' => $admin->id, 'status' => \App\Domain\Enums\EventStatus::Ended,
+    ]);
+
+    $this->actingAs($admin, 'sanctum')
+        ->postJson("/api/events/{$event->id}/days", ['date' => '2026-11-10', 'day_number' => 1])
+        ->assertStatus(409);
+
+    expect($event->days()->count())->toBe(0);
+});
+
+it('returns 409 adding a new session to a day whose event has already ended', function () {
+    $admin = eventTestStaff('csg_admin', '2020000001');
+    $event = EventModel::create([
+        'name' => 'Intramurals 2026', 'created_by' => $admin->id, 'status' => \App\Domain\Enums\EventStatus::Ended,
+    ]);
+    $day = \App\Models\EventDay::create(['event_id' => $event->id, 'date' => '2026-11-10', 'day_number' => 1]);
+
+    $this->actingAs($admin, 'sanctum')
+        ->postJson("/api/event-days/{$day->id}/sessions", [
+            'window_type' => 'morning', 'check_type' => 'time_in', 'start_time' => '07:00', 'end_time' => '08:00',
+        ])
+        ->assertStatus(409);
+
+    expect($day->sessions()->count())->toBe(0);
+});
+
 it('rejects a session where end_time is not after start_time', function () {
     $admin = eventTestStaff('csg_admin', '2020000001');
     $event = EventModel::create(['name' => 'Intramurals 2026', 'created_by' => $admin->id]);
@@ -223,4 +252,127 @@ it('rejects a session where end_time is not after start_time', function () {
         ])
         ->assertStatus(422)
         ->assertJsonValidationErrors('end_time');
+});
+
+// event-day-window-edit-delete-plan.md §6: PATCH /events/{event} (UpdateEvent).
+
+it('rejects an unauthenticated event update', function () {
+    $admin = eventTestStaff('csg_admin', '2020000001');
+    $event = EventModel::create(['name' => 'Intramurals 2026', 'created_by' => $admin->id]);
+
+    $this->patchJson("/api/events/{$event->id}", ['name' => 'New Name'])
+        ->assertStatus(401);
+});
+
+it('rejects event update from a non-admin role', function () {
+    $admin = eventTestStaff('csg_admin', '2020000001');
+    $officer = eventTestStaff('officer', '2020200001');
+    $event = EventModel::create(['name' => 'Intramurals 2026', 'created_by' => $admin->id]);
+
+    $this->actingAs($officer, 'sanctum')
+        ->patchJson("/api/events/{$event->id}", ['name' => 'New Name'])
+        ->assertStatus(403);
+});
+
+it('lets a csg admin update an event name and description', function () {
+    $admin = eventTestStaff('csg_admin', '2020000001');
+    $event = EventModel::create(['name' => 'Intramurals 2026', 'created_by' => $admin->id]);
+
+    $this->actingAs($admin, 'sanctum')
+        ->patchJson("/api/events/{$event->id}", ['name' => 'Renamed', 'description' => 'Updated'])
+        ->assertStatus(200)
+        ->assertJsonPath('name', 'Renamed')
+        ->assertJsonPath('description', 'Updated');
+});
+
+it('allows a partial event update touching only one field', function () {
+    $admin = eventTestStaff('csg_admin', '2020000001');
+    $event = EventModel::create(['name' => 'Intramurals 2026', 'description' => 'Original', 'created_by' => $admin->id]);
+
+    $this->actingAs($admin, 'sanctum')
+        ->patchJson("/api/events/{$event->id}", ['name' => 'Renamed'])
+        ->assertStatus(200)
+        ->assertJsonPath('name', 'Renamed')
+        ->assertJsonPath('description', 'Original');
+});
+
+it('rejects updating an already-ended event with a 409', function () {
+    $admin = eventTestStaff('csg_admin', '2020000001');
+    $event = EventModel::create([
+        'name' => 'Intramurals 2026', 'created_by' => $admin->id, 'status' => \App\Domain\Enums\EventStatus::Ended,
+    ]);
+
+    $this->actingAs($admin, 'sanctum')
+        ->patchJson("/api/events/{$event->id}", ['name' => 'Renamed'])
+        ->assertStatus(409);
+});
+
+it('returns 404 when updating a nonexistent event', function () {
+    $admin = eventTestStaff('csg_admin', '2020000001');
+
+    $this->actingAs($admin, 'sanctum')
+        ->patchJson('/api/events/999999', ['name' => 'Renamed'])
+        ->assertStatus(404);
+});
+
+it('rejects an event update with an empty name', function () {
+    $admin = eventTestStaff('csg_admin', '2020000001');
+    $event = EventModel::create(['name' => 'Intramurals 2026', 'created_by' => $admin->id]);
+
+    $this->actingAs($admin, 'sanctum')
+        ->patchJson("/api/events/{$event->id}", ['name' => ''])
+        ->assertStatus(422)
+        ->assertJsonValidationErrors('name');
+});
+
+it('rejects an unauthenticated event delete', function () {
+    $admin = eventTestStaff('csg_admin', '2020000001');
+    $event = EventModel::create(['name' => 'Duplicate Intramurals', 'created_by' => $admin->id]);
+
+    $this->deleteJson("/api/events/{$event->id}")->assertStatus(401);
+});
+
+it('rejects event delete from a non-admin role', function () {
+    $admin = eventTestStaff('csg_admin', '2020000001');
+    $officer = eventTestStaff('officer', '2020200001');
+    $event = EventModel::create(['name' => 'Duplicate Intramurals', 'created_by' => $admin->id]);
+
+    $this->actingAs($officer, 'sanctum')
+        ->deleteJson("/api/events/{$event->id}")
+        ->assertStatus(403);
+
+    expect(EventModel::find($event->id))->not->toBeNull();
+});
+
+it('lets a csg admin delete a freshly created event with nothing under it', function () {
+    $admin = eventTestStaff('csg_admin', '2020000001');
+    $event = EventModel::create(['name' => 'Duplicate Intramurals', 'created_by' => $admin->id]);
+
+    $this->actingAs($admin, 'sanctum')
+        ->deleteJson("/api/events/{$event->id}")
+        ->assertStatus(200)
+        ->assertJsonPath('event_id', $event->id);
+
+    expect(EventModel::find($event->id))->toBeNull();
+});
+
+it('rejects deleting an already-ended event with a 409', function () {
+    $admin = eventTestStaff('csg_admin', '2020000001');
+    $event = EventModel::create([
+        'name' => 'Duplicate Intramurals', 'created_by' => $admin->id, 'status' => \App\Domain\Enums\EventStatus::Ended,
+    ]);
+
+    $this->actingAs($admin, 'sanctum')
+        ->deleteJson("/api/events/{$event->id}")
+        ->assertStatus(409);
+
+    expect(EventModel::find($event->id))->not->toBeNull();
+});
+
+it('returns 404 when deleting a nonexistent event', function () {
+    $admin = eventTestStaff('csg_admin', '2020000001');
+
+    $this->actingAs($admin, 'sanctum')
+        ->deleteJson('/api/events/999999')
+        ->assertStatus(404);
 });

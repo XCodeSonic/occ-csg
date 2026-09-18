@@ -31,12 +31,21 @@ function isIOS(): boolean {
  * httpClient does. The object URL is revoked whenever the underlying
  * blob changes or the hook unmounts, so we don't leak memory across
  * repeated visits to the page.
+ *
+ * `enabled` defaults to true; pass `false` to skip the fetch entirely —
+ * e.g. the QR screen behind a "photo required" gate, where there's
+ * nothing worth fetching yet and doing so anyway would just be a wasted
+ * request against an endpoint the officer flow doesn't need until the
+ * gate clears.
  */
-export function useStudentQr(studentId: number) {
+export function useStudentQr(studentId: number, options?: { enabled?: boolean }) {
+    const enabled = options?.enabled ?? true;
+
     const query = useQuery({
         queryKey: studentQrQueryKey(studentId),
         queryFn: () => httpStudentsRepository.getQrCode(studentId),
         staleTime: 5 * 60 * 1000,
+        enabled,
     });
 
     const [qrUrl, setQrUrl] = useState<string | null>(null);
@@ -105,6 +114,7 @@ export function useStudentQr(studentId: number) {
         qrUrl,
         isLoading: query.isLoading,
         isError: query.isError,
+        error: query.error,
         refetch: query.refetch,
         save: handleSave,
     };

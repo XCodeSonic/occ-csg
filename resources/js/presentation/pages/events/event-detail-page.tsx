@@ -1,6 +1,7 @@
 import { type FormEvent, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { CalendarDays, CalendarPlus, FileBarChart, Lock, Radio, SearchX, UserX } from 'lucide-react';
+import { isAxiosError } from 'axios';
+import { CalendarClock, CalendarDays, CalendarPlus, FileBarChart, Lock, Pencil, Radio, SearchX, Trash2, UserX } from 'lucide-react';
 import { toast } from 'sonner';
 
 import {
@@ -16,13 +17,16 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuthStore } from '@/application/auth/auth.store';
 import { useEvents } from '@/application/events/use-events';
 import { useCreateEventDay } from '@/application/events/use-create-event-day';
+import { useDeleteEvent } from '@/application/events/use-delete-event';
 import { useEndEvent } from '@/application/events/use-end-event';
 import { useMyEventAttendance } from '@/application/events/use-my-event-attendance';
+import { useUpdateEvent } from '@/application/events/use-update-event';
 import { EVENT_STATUS_BADGE_CLASS, EVENT_STATUS_LABEL, EventStatus, Role, SessionStatus } from '@/domain/enums';
 import { cn } from '@/lib/utils';
 import { Heading, Text } from '@/presentation/components/typography';
@@ -30,7 +34,14 @@ import { EmptyState, ListSkeleton, SectionHeader } from '@/presentation/componen
 import { Tile } from '@/presentation/components/tile';
 import { TONE } from '@/presentation/components/tone';
 import { EventDaySection } from '@/presentation/pages/events/event-day-section';
+import { RescheduleDaysDialog } from '@/presentation/pages/events/reschedule-days-dialog';
 import { StudentEventDaySection } from '@/presentation/pages/events/student-event-day-section';
+
+function extractErrorMessage(error: unknown, fallback: string): string {
+    return isAxiosError(error) && typeof error.response?.data?.message === 'string'
+        ? error.response.data.message
+        : fallback;
+}
 
 const MANAGE_ROLES: Role[] = [Role.SystemAdmin, Role.CsgAdmin];
 // Mirrors EventModelPolicy::viewRosterReport — an SC Admin can pull
@@ -45,6 +56,11 @@ interface DayFormValues {
 
 const EMPTY_DAY_FORM: DayFormValues = { date: '', dayNumber: '' };
 
+interface EventFormValues {
+    name: string;
+    description: string;
+}
+
 export function EventDetailPage() {
     const { eventId } = useParams<{ eventId: string }>();
     const navigate = useNavigate();
@@ -54,10 +70,16 @@ export function EventDetailPage() {
     const [isCreatingDay, setIsCreatingDay] = useState(false);
     const [dayForm, setDayForm] = useState<DayFormValues>(EMPTY_DAY_FORM);
     const [isEndEventDialogOpen, setIsEndEventDialogOpen] = useState(false);
+    const [isEditingEvent, setIsEditingEvent] = useState(false);
+    const [eventForm, setEventForm] = useState<EventFormValues>({ name: '', description: '' });
+    const [isRescheduleOpen, setIsRescheduleOpen] = useState(false);
+    const [isDeletingEvent, setIsDeletingEvent] = useState(false);
 
     const event = events?.find((candidate) => candidate.id === Number(eventId));
     const createEventDay = useCreateEventDay(Number(eventId));
     const endEvent = useEndEvent();
+    const updateEvent = useUpdateEvent();
+    const deleteEvent = useDeleteEvent();
     // Only rendered for non-managers (see canManage below), but the hook
     // itself has to run unconditionally either way — React's rules of
     // hooks don't allow it behind the early `if (!student)` return.
@@ -76,6 +98,14 @@ export function EventDetailPage() {
     // session the moment one goes ongoing, instead of only finding out
     // after the server rejects it.
     const ongoingSessionId = sortedDays.flatMap((day) => day.sessions).find((session) => session.status === SessionStatus.Ongoing)?.id ?? null;
+    // Mirrors DeleteEvent's own "nothing has actually happened yet"
+    // guard (any session anywhere under the event already started or
+    // ended) — just to decide whether to show the delete affordance at
+    // all. The server re-checks for real, including the exclusion/report
+    // guard this can't see from here.
+    const eventHasStartedSession = sortedDays.some((day) =>
+        day.sessions.some((session) => session.status !== SessionStatus.Scheduled),
+    );
 
     function confirmEndEvent() {
         if (!event) return;
@@ -88,6 +118,61 @@ export function EventDetailPage() {
             },
             onError: () => toast.error('Could not end event.'),
         });
+    }
+
+    function confirmDeleteEvent() {
+        if (!event) return;
+
+        deleteEvent.mutate(event.id, {
+            onSuccess: () => {
+                toast.success('Event deleted.');
+                navigate('/events');
+            },
+            onError: (error) => {
+                const message = extractErrorMessage(
+                    error,
+                    'Could not delete event. It may already have a started session or a generated report tied to it.',
+                );
+
+                // DeleteEvent's one resolvable guard: an active exclusion.
+                // Point straight at the screen that fixes it instead of
+                // just saying "no" — same pattern as the day-date-collision
+                // → Reschedule toast in event-day-section.tsx.
+                if (message.toLowerCase().includes('exclusion')) {
+                    toast.error(message, {
+                        action: {
+                            label: 'Go to Exclusions',
+                            onClick: () => navigate(`/events/${event.id}/exclusions`),
+                        },
+                    });
+                    return;
+                }
+
+                toast.error(message);
+            },
+        });
+    }
+
+    function openEditEvent() {
+        if (!event) return;
+        setEventForm({ name: event.name, description: event.description ?? '' });
+        setIsEditingEvent(true);
+    }
+
+    function handleUpdateEvent(formEvent: FormEvent) {
+        formEvent.preventDefault();
+        if (!event) return;
+
+        updateEvent.mutate(
+            { id: event.id, payload: { name: eventForm.name, description: eventForm.description || null } },
+            {
+                onSuccess: () => {
+                    toast.success('Event updated.');
+                    setIsEditingEvent(false);
+                },
+                onError: (error) => toast.error(extractErrorMessage(error, 'Could not update event.')),
+            },
+        );
     }
 
     function handleCreateDay(formEvent: FormEvent) {
@@ -163,6 +248,32 @@ export function EventDetailPage() {
                             <Badge variant="secondary" className={EVENT_STATUS_BADGE_CLASS[event.status]}>
                                 {EVENT_STATUS_LABEL[event.status]}
                             </Badge>
+                            {canManage && !isEventEnded && (
+                                <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="size-7 shrink-0 text-muted-foreground"
+                                    onClick={openEditEvent}
+                                    aria-label="Edit event"
+                                >
+                                    <Pencil className="size-3.5" />
+                                </Button>
+                            )}
+                            {/* Only while nothing under the event has started
+                                or ended yet — the server re-checks this (plus
+                                an exclusion/report guard this can't see from
+                                here) for real. */}
+                            {canManage && !isEventEnded && !eventHasStartedSession && (
+                                <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="size-7 shrink-0 text-muted-foreground hover:text-destructive"
+                                    onClick={() => setIsDeletingEvent(true)}
+                                    aria-label="Delete event"
+                                >
+                                    <Trash2 className="size-3.5" />
+                                </Button>
+                            )}
                         </div>
                         {event.description && <Text variant="small">{event.description}</Text>}
                         {hasOngoingSession && (
@@ -198,6 +309,12 @@ export function EventDetailPage() {
                                 Exclusions
                             </Button>
                         )}
+                        {canManage && !isEventEnded && sortedDays.length > 1 && (
+                            <Button size="sm" variant="outline" className="gap-2" onClick={() => setIsRescheduleOpen(true)}>
+                                <CalendarClock className="size-4" />
+                                Reschedule days
+                            </Button>
+                        )}
                         {canManage && !isEventEnded && (
                             <Button size="sm" variant="destructive" onClick={() => setIsEndEventDialogOpen(true)} disabled={endEvent.isPending}>
                                 {endEvent.isPending ? 'Ending…' : 'End event'}
@@ -223,7 +340,13 @@ export function EventDetailPage() {
                         )}
 
                         {sortedDays.map((day) => (
-                            <EventDaySection key={day.id} day={day} canManage={!isEventEnded} ongoingSessionId={ongoingSessionId} />
+                            <EventDaySection
+                                key={day.id}
+                                day={day}
+                                canManage={!isEventEnded}
+                                ongoingSessionId={ongoingSessionId}
+                                onDateCollision={() => setIsRescheduleOpen(true)}
+                            />
                         ))}
                     </>
                 ) : (
@@ -316,6 +439,48 @@ export function EventDetailPage() {
                     ))}
             </div>
 
+            <Dialog open={isEditingEvent} onOpenChange={setIsEditingEvent}>
+                <DialogContent className="sm:max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle>Edit event</DialogTitle>
+                    </DialogHeader>
+                    <form onSubmit={handleUpdateEvent} className="space-y-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="editEventName">Name</Label>
+                            <Input
+                                id="editEventName"
+                                value={eventForm.name}
+                                onChange={(e) => setEventForm((prev) => ({ ...prev, name: e.target.value }))}
+                                required
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="editEventDescription">Description</Label>
+                            <Input
+                                id="editEventDescription"
+                                value={eventForm.description}
+                                onChange={(e) => setEventForm((prev) => ({ ...prev, description: e.target.value }))}
+                            />
+                        </div>
+                        <DialogFooter>
+                            <Button type="button" variant="outline" onClick={() => setIsEditingEvent(false)}>
+                                Cancel
+                            </Button>
+                            <Button type="submit" disabled={updateEvent.isPending}>
+                                {updateEvent.isPending ? 'Saving…' : 'Save'}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            <RescheduleDaysDialog
+                open={isRescheduleOpen}
+                onOpenChange={setIsRescheduleOpen}
+                eventId={event.id}
+                days={sortedDays}
+            />
+
             <AlertDialog open={isEndEventDialogOpen} onOpenChange={setIsEndEventDialogOpen}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
@@ -328,6 +493,27 @@ export function EventDetailPage() {
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
                         <AlertDialogAction onClick={confirmEndEvent} className={buttonVariants({ variant: 'destructive' })}>
                             Yes, end event
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            <AlertDialog open={isDeletingEvent} onOpenChange={setIsDeletingEvent}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete this event?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {event?.name} and every day/session under it will be removed. This can't be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={confirmDeleteEvent}
+                            disabled={deleteEvent.isPending}
+                            className={buttonVariants({ variant: 'destructive' })}
+                        >
+                            {deleteEvent.isPending ? 'Deleting…' : 'Yes, delete'}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
